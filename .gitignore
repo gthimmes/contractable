@@ -30,3 +30,6 @@ next-env.d.ts
 
 # testing
 /coverage
+
+# dev server log
+.next-dev.log
