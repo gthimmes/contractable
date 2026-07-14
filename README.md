@@ -5,8 +5,9 @@ templates** bound to your data, **redline** them during review, route them
 through **configurable review & approval workflows**, collect **built-in
 e-signatures**, store the executed agreements, and **enforce obligations**
 (payments, renewals, expirations) — all backed by a **tamper-evident,
-hash-chained audit log**. Everything is full-CRUD: contracts, templates,
-workflows, counterparties, and users.
+hash-chained audit log**, **role-based access control**, and **email
+notifications**. Everything is full-CRUD: contracts, templates, workflows,
+counterparties, and users.
 
 Built with Next.js (App Router) + TypeScript + Prisma. Runs locally with zero
 infrastructure (SQLite); Postgres-ready for production.
@@ -87,6 +88,8 @@ src/
     diff.ts        Word-level LCS diff for redlines (tracked changes) + tests
     redline.ts     Propose / accept / reject revisions as versions
     obligations.ts Enforcement: obligations, derived OVERDUE status, upcoming query
+    permissions.ts RBAC policy — can()/assertCan(), roles + owner grants
+    email.ts       Pluggable notification transport → outbox + console
     session.ts     Current-user resolution (cookie-based; swap for real auth)
     *.test.ts      68 unit tests (workflow decisions, template engine, diff engine)
   app/
@@ -97,8 +100,9 @@ src/
     workflows/         Workflow list + visual builder (new/edit)
     sign/[token]/      Public tokenized signing page
     obligations/       Global enforcement view
+    outbox/            Sent-notifications viewer (staff only)
     audit/             Audit log + integrity check
-    settings/          Organization settings + user admin
+    settings/          Organization settings + user admin (admin only)
     actions.ts         Server actions (the write surface)
   components/          UI + client components (signature pad, diff view, generate,
                        redline editor, workflow builder, …)
@@ -168,6 +172,29 @@ Every state change appends to an **append-only, hash-chained** log: each
 event's hash covers the previous event's hash, so any retroactive edit breaks
 the chain from that point forward. The Audit page runs `verifyAuditChain` live.
 
+### Role-based access control
+
+`permissions.ts` is a single pure policy module. `can(actor, action, resource?)`
+is the source of truth for both layers: the UI hides controls a user may not
+use, and **every mutating server action calls `assertCan`** as the real
+security boundary (hiding a button is not access control). Roles: `ADMIN`,
+`LEGAL`, `MANAGER`, `SIGNER`, `VIEWER`. Contract-scoped actions also grant to
+the contract's **owner/creator**, so a manager who owns a deal can act on it
+even if their role alone wouldn't. Try it: switch to **Vic Viewer** — every
+mutation control disappears, admin-only nav (Settings, Outbox) is hidden, and
+direct navigation to a guarded page redirects.
+
+### Email notifications
+
+`email.ts` is a **pluggable transport**: this MVP persists every message to an
+in-app **outbox** (`EmailMessage`) and logs to the console, so notifications
+are demoable with zero infrastructure — swap the `deliver` function for SMTP or
+a provider API in production, and the call sites don't change. Notifications
+fire on: an approval/review step activating (to its assignees), a contract sent
+for signature (each signer's unique link), a contract executed or rejected (to
+the owner), and a redline proposed (to the owner). The **Outbox** page (staff
+only) shows everything sent.
+
 ---
 
 ## Moving to production
@@ -176,13 +203,15 @@ the chain from that point forward. The Audit page runs `verifyAuditChain` live.
   from `sqlite` to `postgresql` and point `DATABASE_URL` at your Postgres
   instance; the schema is otherwise portable. (SQLite is used here only to keep
   local setup zero-infrastructure.)
-- **Auth** — replace `src/lib/session.ts` (and the identity switcher) with real
-  authentication/SSO and enforce role-based authorization in the server
-  actions.
+- **Authentication** — role-based *authorization* is already enforced in every
+  server action (`permissions.ts`). What's stubbed is *authentication*: replace
+  `src/lib/session.ts` and the identity switcher with real login/SSO so the
+  acting user is established by a session instead of a cookie the user can set.
 - **E-signature** — the built-in signer is self-contained. To use a third-party
   provider (e.g. DocuSign), implement an alternative behind the signing module.
-- **Notifications** — email signing links and approval requests (currently
-  surfaced in-app).
+- **Email delivery** — notifications are written to the in-app outbox and the
+  console; point `email.ts`'s `deliver` at SMTP or a provider API to send real
+  mail.
 
 ---
 
@@ -194,11 +223,13 @@ propose/accept/reject; configurable multi-step workflows (review/approval/
 signature) with a visual builder, role- and user-based assignment, ALL/ANY
 rules, and rejection handling; built-in ordered e-signature with hashing;
 contract versioning with lineage; obligation tracking with overdue detection;
-hash-chained audit with verification; counterparties, organization, and user
-admin; and full insert/edit/delete across contracts, templates, workflows,
-counterparties, obligations, signers, comments, and users.
+hash-chained audit with verification; **role-based access control enforced in
+every server action**; **email notifications with an in-app outbox**;
+counterparties, organization, and user admin; and full insert/edit/delete
+across contracts, templates, workflows, counterparties, obligations, signers,
+comments, and users.
 
-**Natural next steps:** email notifications for approvals and signing links,
+**Natural next steps:** real authentication/SSO (authorization is done; the
+cookie-based identity switcher is the one remaining stub), real email delivery,
 PDF export of executed contracts, clause libraries and conditional template
-sections, full-text search, and real auth/RBAC (the cookie-based identity
-switcher is the one deliberate MVP stub).
+sections, and full-text search.
