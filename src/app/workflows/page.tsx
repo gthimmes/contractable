@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
+import { deleteWorkflowAction } from "@/app/actions";
+import { ConfirmSubmit } from "@/components/ConfirmSubmit";
 import {
   STEP_TYPE_LABELS,
   ROLE_LABELS,
@@ -24,13 +26,18 @@ export default async function WorkflowsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Workflows</h1>
-        <p className="text-sm text-gray-500">
-          Reusable review &amp; approval paths. Each contract can be routed
-          through any of these; steps run in order and complete by ALL or ANY of
-          their assignees.
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Workflows</h1>
+          <p className="text-sm text-gray-500">
+            Reusable review &amp; approval paths. Each contract can be routed
+            through any of these; steps run in order and complete by ALL or ANY of
+            their assignees.
+          </p>
+        </div>
+        <Link href="/workflows/new" className="btn-primary shrink-0">
+          + New workflow
+        </Link>
       </div>
 
       <div className="grid gap-5 md:grid-cols-2">
@@ -46,9 +53,30 @@ export default async function WorkflowsPage() {
                 </h2>
                 <p className="mt-1 text-sm text-gray-500">{t.description}</p>
               </div>
-              <span className="text-xs text-gray-400">
-                {t._count.instances} run{t._count.instances === 1 ? "" : "s"}
-              </span>
+              <div className="flex flex-col items-end gap-1">
+                <span className="text-xs text-gray-400">
+                  {t._count.instances} run{t._count.instances === 1 ? "" : "s"}
+                </span>
+                <div className="flex items-center gap-2">
+                  <Link
+                    href={`/workflows/${t.id}/edit`}
+                    className="text-xs font-medium text-brand-600 hover:underline"
+                  >
+                    Edit
+                  </Link>
+                  {t._count.instances === 0 && (
+                    <form action={deleteWorkflowAction}>
+                      <input type="hidden" name="id" value={t.id} />
+                      <ConfirmSubmit
+                        message={`Delete workflow "${t.name}"?`}
+                        className="text-xs font-medium text-red-600 hover:underline"
+                      >
+                        Delete
+                      </ConfirmSubmit>
+                    </form>
+                  )}
+                </div>
+              </div>
             </div>
 
             <ol className="mt-4 space-y-2">

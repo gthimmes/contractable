@@ -13,9 +13,12 @@ export const metadata: Metadata = {
 const NAV = [
   { href: "/", label: "Dashboard" },
   { href: "/contracts", label: "Contracts" },
+  { href: "/counterparties", label: "Counterparties" },
+  { href: "/templates", label: "Templates" },
   { href: "/workflows", label: "Workflows" },
   { href: "/obligations", label: "Obligations" },
   { href: "/audit", label: "Audit" },
+  { href: "/settings", label: "Settings" },
 ];
 
 export default async function RootLayout({

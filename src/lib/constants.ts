@@ -109,6 +109,18 @@ export type WorkflowStatus = (typeof WORKFLOW_STATUS)[number];
 export const SIGNATURE_STATUS = ["PENDING", "SIGNED", "DECLINED"] as const;
 export type SignatureStatus = (typeof SIGNATURE_STATUS)[number];
 
+// Version lifecycle — supports redlining (proposed revisions alongside current).
+export const VERSION_STATUS = [
+  "CURRENT",
+  "PROPOSED",
+  "SUPERSEDED",
+  "REJECTED",
+] as const;
+export type VersionStatus = (typeof VERSION_STATUS)[number];
+
+export const VERSION_ORIGIN = ["MANUAL", "GENERATED", "REDLINE"] as const;
+export type VersionOrigin = (typeof VERSION_ORIGIN)[number];
+
 export const OBLIGATION_TYPES = [
   "PAYMENT",
   "RENEWAL",

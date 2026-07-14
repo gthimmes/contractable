@@ -4,9 +4,10 @@ import { createContractAction } from "@/app/actions";
 import { CONTRACT_CATEGORIES } from "@/lib/constants";
 
 export default async function NewContractPage() {
-  const templates = await prisma.contractTemplate.findMany({
-    orderBy: { name: "asc" },
-  });
+  const [templates, counterparties] = await Promise.all([
+    prisma.contractTemplate.findMany({ orderBy: { name: "asc" } }),
+    prisma.counterparty.findMany({ orderBy: { name: "asc" } }),
+  ]);
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -31,8 +32,16 @@ export default async function NewContractPage() {
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="label">Counterparty</label>
-            <input name="counterparty" className="input" placeholder="Globex Corporation" />
+            <label className="label">Counterparty (record)</label>
+            <select name="counterpartyId" className="input" defaultValue="">
+              <option value="">— none / free text —</option>
+              {counterparties.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+            <p className="mt-1 text-xs text-gray-500">
+              Linking a record lets document generation bind its data.
+            </p>
           </div>
           <div>
             <label className="label">Category</label>
@@ -43,6 +52,11 @@ export default async function NewContractPage() {
               ))}
             </select>
           </div>
+        </div>
+
+        <div>
+          <label className="label">Counterparty (free text)</label>
+          <input name="counterparty" className="input" placeholder="Globex Corporation (if no record)" />
         </div>
 
         <div>

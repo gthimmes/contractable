@@ -17,6 +17,39 @@ datasource db {
 }
 
 // ---------------------------------------------------------------------------
+// Organization & counterparties (data sources for document generation)
+// ---------------------------------------------------------------------------
+
+// Single-row record describing "our" company; used to bind {{org.*}} merge
+// fields when generating contracts.
+model Organization {
+  id             String   @id @default(cuid())
+  name           String
+  legalName      String?
+  address        String?
+  email          String?
+  signatoryName  String?
+  signatoryTitle String?
+  jurisdiction   String? // governing-law state/country
+  updatedAt      DateTime @updatedAt
+}
+
+model Counterparty {
+  id           String   @id @default(cuid())
+  name         String
+  legalName    String?
+  address      String?
+  contactName  String?
+  contactEmail String?
+  jurisdiction String?
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  contracts Contract[]
+}
+
+// ---------------------------------------------------------------------------
 // People
 // ---------------------------------------------------------------------------
 
@@ -46,8 +79,9 @@ model ContractTemplate {
   name        String
   description String?
   category    String? // e.g. NDA, MSA, SOW, EMPLOYMENT
-  body        String // markdown/plain-text body with {{placeholders}}
-  createdAt   DateTime @default(now())
+  body          String // markdown/plain-text body with {{placeholders}}
+  variablesJson String? // optional JSON describing declared merge fields
+  createdAt     DateTime @default(now())
 
   contracts Contract[]
 }
@@ -57,9 +91,12 @@ model Contract {
   reference   String  @unique // human-friendly, e.g. CTR-0001
   title       String
   description String?
-  counterparty String?
+  counterparty   String? // display cache of the linked counterparty's name
+  counterpartyId String?
+  counterpartyRef Counterparty? @relation(fields: [counterpartyId], references: [id])
   category    String? // NDA | MSA | SOW | EMPLOYMENT | VENDOR | OTHER
   status      String  @default("DRAFT") // see CONTRACT_STATUS in constants
+  dataJson    String? // JSON of custom merge-field values for document generation
 
   value    Float?
   currency String? @default("USD")
@@ -98,12 +135,17 @@ model ContractVersion {
   body          String
   contentHash   String // sha256 of body, anchors signatures/audit
   note          String?
+  status        String   @default("CURRENT") // CURRENT | PROPOSED | SUPERSEDED | REJECTED
+  origin        String   @default("MANUAL") // MANUAL | GENERATED | REDLINE
+  basedOnVersionId String?
   createdById   String
   createdBy     User     @relation(fields: [createdById], references: [id])
   createdAt     DateTime @default(now())
 
-  currentFor Contract?   @relation("CurrentVersion")
-  signatures Signature[]
+  currentFor      Contract?         @relation("CurrentVersion")
+  signatures      Signature[]
+  basedOn         ContractVersion?  @relation("VersionLineage", fields: [basedOnVersionId], references: [id])
+  derivedVersions ContractVersion[] @relation("VersionLineage")
 
   @@unique([contractId, versionNumber])
 }
