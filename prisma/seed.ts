@@ -59,8 +59,8 @@ This Master Services Agreement is entered into as of {{ today | date }} between
    successive twelve (12) month terms unless either Party gives sixty (60) days'
    notice of non-renewal.
 
-4. LIMITATION OF LIABILITY. Neither Party's aggregate liability shall exceed the
-   fees paid in the twelve (12) months preceding the claim.
+4. LIMITATION OF LIABILITY. Neither Party's aggregate liability shall not exceed
+   the fees paid in the twelve (12) months preceding the claim.
 
 5. GOVERNING LAW. Governed by the laws of {{ org.jurisdiction | default:"the State of Delaware" }}.`;
 
@@ -186,8 +186,8 @@ async function main() {
   await startWorkflow(inReview.id, standard.id, { id: mona.id, name: mona.name });
   // Larry proposes a redline tightening the liability cap.
   const redlineBody = render(MSA_TPL, initech, { value: 240000 }).replace(
-    "shall not exceed the\n   fees paid in the twelve (12) months preceding the claim.",
-    "shall not exceed the\n   fees paid in the SIX (6) months preceding the claim, except for breaches of confidentiality."
+    "the fees paid in the twelve (12) months preceding the claim.",
+    "the fees paid in the six (6) months preceding the claim, except for breaches of confidentiality or misuse of Confidential Information."
   );
   await proposeRedline(inReview.id, redlineBody, "Tighten liability cap to 6 months; carve out confidentiality breaches.", { id: larry.id, name: larry.name });
 
