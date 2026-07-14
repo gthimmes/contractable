@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
+import { getCurrentUser } from "@/lib/session";
+import { can } from "@/lib/permissions";
 import { EmptyState } from "@/components/ui";
 import { ConfirmSubmit } from "@/components/ConfirmSubmit";
 import { deleteTemplateAction } from "@/app/actions";
@@ -10,6 +12,10 @@ export default async function TemplatesPage() {
     orderBy: { name: "asc" },
     include: { _count: { select: { contracts: true } } },
   });
+
+  const me = await getCurrentUser();
+  const meActor = { id: me.id, role: me.role };
+  const canManage = can(meActor, "template:manage");
 
   return (
     <div className="space-y-6">
@@ -26,9 +32,11 @@ export default async function TemplatesPage() {
             that get filled in to generate finished contracts.
           </p>
         </div>
-        <Link href="/templates/new" className="btn-primary">
-          + New template
-        </Link>
+        {canManage && (
+          <Link href="/templates/new" className="btn-primary">
+            + New template
+          </Link>
+        )}
       </div>
 
       {templates.length === 0 ? (
@@ -84,23 +92,25 @@ export default async function TemplatesPage() {
                   )}
                 </div>
 
-                <div className="mt-4 flex items-center gap-4 border-t border-gray-100 pt-3">
-                  <Link
-                    href={`/templates/${t.id}/edit`}
-                    className="text-xs font-medium text-brand-600 hover:underline"
-                  >
-                    Edit
-                  </Link>
-                  <form action={deleteTemplateAction}>
-                    <input type="hidden" name="id" value={t.id} />
-                    <ConfirmSubmit
-                      message="Delete this template?"
-                      className="text-xs font-medium text-red-600 hover:underline"
+                {canManage && (
+                  <div className="mt-4 flex items-center gap-4 border-t border-gray-100 pt-3">
+                    <Link
+                      href={`/templates/${t.id}/edit`}
+                      className="text-xs font-medium text-brand-600 hover:underline"
                     >
-                      Delete
-                    </ConfirmSubmit>
-                  </form>
-                </div>
+                      Edit
+                    </Link>
+                    <form action={deleteTemplateAction}>
+                      <input type="hidden" name="id" value={t.id} />
+                      <ConfirmSubmit
+                        message="Delete this template?"
+                        className="text-xs font-medium text-red-600 hover:underline"
+                      >
+                        Delete
+                      </ConfirmSubmit>
+                    </form>
+                  </div>
+                )}
               </div>
             );
           })}

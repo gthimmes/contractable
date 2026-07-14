@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { getCurrentUser, getAllUsers } from "@/lib/session";
 import { effectiveStatus } from "@/lib/obligations";
 import { buildContext } from "@/lib/generation";
+import { can } from "@/lib/permissions";
 import {
   StatusBadge,
   Pill,
@@ -103,20 +104,37 @@ export default async function ContractDetailPage({
         )
       : undefined;
 
-  const canStartWorkflow =
-    !activeInstance && ["DRAFT", "REJECTED"].includes(contract.status);
-  const canSendForSignature = ["APPROVED", "OUT_FOR_SIGNATURE"].includes(
-    contract.status
-  );
-  const editable = ["DRAFT", "REJECTED"].includes(contract.status) && !activeInstance;
-  const canRedline = ["DRAFT", "IN_REVIEW", "APPROVED"].includes(contract.status);
-  const canDelete = ["DRAFT", "REJECTED", "CANCELLED"].includes(contract.status);
+  // Authorization: combine lifecycle state with the acting user's permissions.
+  const meActor = { id: me.id, role: me.role };
+  const editableState =
+    ["DRAFT", "REJECTED"].includes(contract.status) && !activeInstance;
+  const perm = {
+    edit: can(meActor, "contract:edit", contract),
+    delete:
+      ["DRAFT", "REJECTED", "CANCELLED"].includes(contract.status) &&
+      can(meActor, "contract:delete", contract),
+    generate: editableState && can(meActor, "contract:generate", contract),
+    workflow:
+      !activeInstance &&
+      ["DRAFT", "REJECTED"].includes(contract.status) &&
+      can(meActor, "workflow:start", contract),
+    signature:
+      ["APPROVED", "OUT_FOR_SIGNATURE"].includes(contract.status) &&
+      can(meActor, "signature:manage", contract),
+    signatureManage: can(meActor, "signature:manage", contract),
+    redlinePropose:
+      ["DRAFT", "IN_REVIEW", "APPROVED"].includes(contract.status) &&
+      can(meActor, "redline:propose", contract),
+    redlineResolve: can(meActor, "redline:resolve", contract),
+    obligation: can(meActor, "obligation:manage", contract),
+    comment: can(meActor, "comment:create"),
+  };
 
   const currentBody = contract.currentVersion?.body ?? "";
   const proposedRedlines = contract.versions.filter((v) => v.status === "PROPOSED");
 
   const baseContext =
-    editable && contractTemplates.length > 0
+    perm.generate && contractTemplates.length > 0
       ? await buildContext(contract.id)
       : null;
 
@@ -142,10 +160,12 @@ export default async function ContractDetailPage({
             )}
           </div>
           <div className="flex items-center gap-2">
-            <Link href={`/contracts/${contract.id}/edit`} className="btn-secondary">
-              Edit
-            </Link>
-            {canDelete && (
+            {perm.edit && (
+              <Link href={`/contracts/${contract.id}/edit`} className="btn-secondary">
+                Edit
+              </Link>
+            )}
+            {perm.delete && (
               <form action={deleteContractAction}>
                 <input type="hidden" name="contractId" value={contract.id} />
                 <ConfirmSubmit message={`Permanently delete ${contract.reference}? This cannot be undone.`}>
@@ -161,7 +181,7 @@ export default async function ContractDetailPage({
         {/* Main column */}
         <div className="space-y-6 lg:col-span-2">
           {/* Generate from template */}
-          {editable && contractTemplates.length > 0 && baseContext && (
+          {perm.generate && contractTemplates.length > 0 && baseContext && (
             <section className="card p-5">
               <h2 className="mb-1 text-lg font-semibold">Generate document</h2>
               <p className="mb-4 text-sm text-gray-500">
@@ -185,7 +205,7 @@ export default async function ContractDetailPage({
           <section className="card p-5">
             <h2 className="mb-4 text-lg font-semibold">Review &amp; approval</h2>
 
-            {canStartWorkflow && (
+            {perm.workflow && (
               <form action={startWorkflowAction} className="space-y-3">
                 <input type="hidden" name="contractId" value={contract.id} />
                 <p className="text-sm text-gray-600">Route this contract through a workflow:</p>
@@ -297,7 +317,7 @@ export default async function ContractDetailPage({
               </div>
             )}
 
-            {!activeInstance && !canStartWorkflow && (
+            {!activeInstance && !perm.workflow && (
               <p className="text-sm text-gray-500">
                 {contract.status === "EXECUTED"
                   ? "Fully executed — the approval workflow is complete."
@@ -307,7 +327,7 @@ export default async function ContractDetailPage({
           </section>
 
           {/* Redlines & revisions */}
-          {(canRedline || proposedRedlines.length > 0) && (
+          {(perm.redlinePropose || proposedRedlines.length > 0) && (
             <section className="card p-5">
               <h2 className="mb-1 text-lg font-semibold">Redlines &amp; revisions</h2>
               <p className="mb-4 text-sm text-gray-500">
@@ -330,32 +350,38 @@ export default async function ContractDetailPage({
                         <Pill value={v.status} />
                       </div>
                       <DiffView oldText={v.basedOn?.body ?? currentBody} newText={v.body} />
-                      <div className="mt-3 flex gap-2">
-                        <form action={acceptRedlineAction}>
-                          <input type="hidden" name="contractId" value={contract.id} />
-                          <input type="hidden" name="versionId" value={v.id} />
-                          <button className="btn-success">Accept redline</button>
-                        </form>
-                        <form action={rejectRedlineAction} className="flex items-center gap-2">
-                          <input type="hidden" name="contractId" value={contract.id} />
-                          <input type="hidden" name="versionId" value={v.id} />
-                          <input name="reason" placeholder="Reason (optional)" className="input max-w-xs" />
-                          <button className="btn-danger">Reject</button>
-                        </form>
-                      </div>
+                      {perm.redlineResolve ? (
+                        <div className="mt-3 flex gap-2">
+                          <form action={acceptRedlineAction}>
+                            <input type="hidden" name="contractId" value={contract.id} />
+                            <input type="hidden" name="versionId" value={v.id} />
+                            <button className="btn-success">Accept redline</button>
+                          </form>
+                          <form action={rejectRedlineAction} className="flex items-center gap-2">
+                            <input type="hidden" name="contractId" value={contract.id} />
+                            <input type="hidden" name="versionId" value={v.id} />
+                            <input name="reason" placeholder="Reason (optional)" className="input max-w-xs" />
+                            <button className="btn-danger">Reject</button>
+                          </form>
+                        </div>
+                      ) : (
+                        <p className="mt-3 text-xs text-gray-400">
+                          Only Legal or an admin can accept or reject this redline.
+                        </p>
+                      )}
                     </div>
                   ))}
                 </div>
               )}
 
-              {canRedline && (
+              {perm.redlinePropose && (
                 <RedlineEditor contractId={contract.id} currentBody={currentBody} />
               )}
             </section>
           )}
 
           {/* Signatures */}
-          {(canSendForSignature || contract.signatures.length > 0) && (
+          {(perm.signature || contract.signatures.length > 0) && (
             <section className="card p-5">
               <h2 className="mb-4 text-lg font-semibold">Signatures</h2>
               {contract.signatures.length > 0 && (
@@ -376,13 +402,15 @@ export default async function ContractDetailPage({
                             <Link href={`/sign/${sig.token}`} className="text-xs font-medium text-brand-600 hover:underline">
                               Open →
                             </Link>
-                            <form action={removeSignatureAction}>
-                              <input type="hidden" name="contractId" value={contract.id} />
-                              <input type="hidden" name="signatureId" value={sig.id} />
-                              <ConfirmSubmit message="Remove this pending signer?" className="text-xs font-medium text-red-600 hover:underline">
-                                Remove
-                              </ConfirmSubmit>
-                            </form>
+                            {perm.signatureManage && (
+                              <form action={removeSignatureAction}>
+                                <input type="hidden" name="contractId" value={contract.id} />
+                                <input type="hidden" name="signatureId" value={sig.id} />
+                                <ConfirmSubmit message="Remove this pending signer?" className="text-xs font-medium text-red-600 hover:underline">
+                                  Remove
+                                </ConfirmSubmit>
+                              </form>
+                            )}
                           </>
                         )}
                         <Pill value={sig.status} />
@@ -391,7 +419,7 @@ export default async function ContractDetailPage({
                   ))}
                 </ul>
               )}
-              {canSendForSignature && (
+              {perm.signature && (
                 <div className="rounded-lg border border-gray-200 p-4">
                   <SendForSignature contractId={contract.id} />
                 </div>
@@ -455,7 +483,7 @@ export default async function ContractDetailPage({
                       </div>
                       <div className="flex items-center gap-2">
                         <Pill value={effectiveStatus(o)} />
-                        {o.status === "OPEN" && (
+                        {perm.obligation && o.status === "OPEN" && (
                           <form action={setObligationStatusAction}>
                             <input type="hidden" name="contractId" value={contract.id} />
                             <input type="hidden" name="obligationId" value={o.id} />
@@ -463,13 +491,15 @@ export default async function ContractDetailPage({
                             <button className="text-xs font-medium text-emerald-600 hover:underline">Mark done</button>
                           </form>
                         )}
-                        <form action={deleteObligationAction}>
-                          <input type="hidden" name="contractId" value={contract.id} />
-                          <input type="hidden" name="obligationId" value={o.id} />
-                          <ConfirmSubmit message="Delete this obligation?" className="text-xs font-medium text-red-600 hover:underline">
-                            Delete
-                          </ConfirmSubmit>
-                        </form>
+                        {perm.obligation && (
+                          <form action={deleteObligationAction}>
+                            <input type="hidden" name="contractId" value={contract.id} />
+                            <input type="hidden" name="obligationId" value={o.id} />
+                            <ConfirmSubmit message="Delete this obligation?" className="text-xs font-medium text-red-600 hover:underline">
+                              Delete
+                            </ConfirmSubmit>
+                          </form>
+                        )}
                       </div>
                     </div>
                   </li>
@@ -477,6 +507,7 @@ export default async function ContractDetailPage({
               </ul>
             )}
 
+            {perm.obligation && (
             <details className="rounded-lg border border-gray-200 p-4">
               <summary className="cursor-pointer text-sm font-medium text-brand-600">+ Add obligation</summary>
               <form action={addObligationAction} className="mt-3 space-y-3">
@@ -502,6 +533,7 @@ export default async function ContractDetailPage({
                 <button type="submit" className="btn-primary">Add obligation</button>
               </form>
             </details>
+            )}
           </section>
 
           {/* Comments */}
@@ -528,11 +560,13 @@ export default async function ContractDetailPage({
                 </li>
               ))}
             </ul>
-            <form action={addCommentAction} className="flex gap-2">
-              <input type="hidden" name="contractId" value={contract.id} />
-              <input name="body" placeholder="Add a comment…" className="input" required />
-              <button type="submit" className="btn-secondary">Post</button>
-            </form>
+            {perm.comment && (
+              <form action={addCommentAction} className="flex gap-2">
+                <input type="hidden" name="contractId" value={contract.id} />
+                <input name="body" placeholder="Add a comment…" className="input" required />
+                <button type="submit" className="btn-secondary">Post</button>
+              </form>
+            )}
           </section>
         </div>
 

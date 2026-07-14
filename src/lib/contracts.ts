@@ -212,6 +212,7 @@ export async function updateContract(
  */
 export async function deleteContract(contractId: string) {
   await prisma.$transaction(async (tx) => {
+    await tx.emailMessage.deleteMany({ where: { contractId } });
     await tx.auditEvent.deleteMany({ where: { contractId } });
     await tx.signature.deleteMany({ where: { contractId } });
     const instances = await tx.workflowInstance.findMany({

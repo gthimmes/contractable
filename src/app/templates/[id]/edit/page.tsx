@@ -1,6 +1,8 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
+import { getCurrentUser } from "@/lib/session";
+import { can } from "@/lib/permissions";
 import { saveTemplateAction } from "@/app/actions";
 import { CONTRACT_CATEGORIES } from "@/lib/constants";
 
@@ -10,6 +12,10 @@ export default async function EditTemplatePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const me = await getCurrentUser();
+  const meActor = { id: me.id, role: me.role };
+  if (!can(meActor, "template:manage")) redirect("/templates");
+
   const template = await prisma.contractTemplate.findUnique({ where: { id } });
   if (!template) notFound();
 

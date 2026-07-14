@@ -1,6 +1,39 @@
 import type { CompletionRule, Decision, StepType } from "./constants";
 import { prisma } from "./db";
 import { recordAudit, type Db } from "./audit";
+import { queueEmail, queueEmails, appUrl } from "./email";
+
+/** Email the contract owner when the contract reaches a terminal state. */
+async function notifyOwner(
+  db: Db,
+  contractId: string,
+  kind: "CONTRACT_EXECUTED" | "CONTRACT_REJECTED"
+) {
+  const c = await db.contract.findUnique({
+    where: { id: contractId },
+    include: { owner: true },
+  });
+  if (!c?.owner) return;
+  const url = `${appUrl()}/contracts/${contractId}`;
+  const msg =
+    kind === "CONTRACT_EXECUTED"
+      ? {
+          subject: `Executed: ${c.reference} — ${c.title}`,
+          body: `Good news — "${c.title}" (${c.reference}) has been fully signed and is now executed.\n\n${url}\n\n— Contractable`,
+        }
+      : {
+          subject: `Rejected: ${c.reference} — ${c.title}`,
+          body: `"${c.title}" (${c.reference}) was rejected during review.\n\n${url}\n\n— Contractable`,
+        };
+  await queueEmail(db, {
+    toEmail: c.owner.email,
+    toName: c.owner.name,
+    subject: msg.subject,
+    body: msg.body,
+    kind,
+    contractId,
+  });
+}
 
 // ===========================================================================
 // PURE DECISION LOGIC  (no database — unit tested in workflow.test.ts)
@@ -194,13 +227,30 @@ async function activateStep(
 
   // A signature step with no configured signers still needs signers added and
   // sent from the contract page; a step with zero assignees of other types
-  // completes vacuously.
+  // completes vacuously. Otherwise, notify the assignees that they're up.
   if (step.type !== "SIGNATURE") {
     const actions = await db.workflowStepAction.findMany({
       where: { stepId: step.id },
+      include: { assignee: true },
     });
     if (actions.length === 0) {
       await completeStepAndAdvance(db, contractId, step.id, actor);
+    } else {
+      const contract = await db.contract.findUniqueOrThrow({
+        where: { id: contractId },
+      });
+      const verb = step.type === "APPROVAL" ? "approval" : "review";
+      await queueEmails(
+        db,
+        actions.map((a) => ({
+          toEmail: a.assignee.email,
+          toName: a.assignee.name,
+          subject: `Action needed: ${step.name} — ${contract.reference}`,
+          body: `Hi ${a.assignee.name},\n\n"${contract.title}" (${contract.reference}) is waiting for your ${verb} at step "${step.name}".\n\nReview it here: ${appUrl()}/contracts/${contractId}\n\n— Contractable`,
+          kind: "APPROVAL_REQUEST" as const,
+          contractId,
+        }))
+      );
     }
   }
 }
@@ -322,6 +372,7 @@ async function completeStepAndAdvance(
       actorId: actor.id,
       actorLabel: actor.name,
     });
+    await notifyOwner(db, contractId, "CONTRACT_EXECUTED");
   } else {
     await db.contract.update({
       where: { id: contractId },
@@ -367,6 +418,7 @@ async function rejectWorkflow(
     actorId: actor.id,
     actorLabel: actor.name,
   });
+  await notifyOwner(db, contractId, "CONTRACT_REJECTED");
 }
 
 /**
@@ -400,6 +452,7 @@ export async function completeSignatureStep(
       actorId: actor.id,
       actorLabel: actor.name,
     });
+    await notifyOwner(db, contractId, "CONTRACT_EXECUTED");
     return;
   }
   await completeStepAndAdvance(db, contractId, activeSig.id, actor);

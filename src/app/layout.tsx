@@ -3,6 +3,7 @@ import Link from "next/link";
 import "./globals.css";
 import { getCurrentUser, getAllUsers } from "@/lib/session";
 import { UserSwitcher } from "@/components/UserSwitcher";
+import { ROLE_LABELS, type Role } from "@/lib/constants";
 
 export const metadata: Metadata = {
   title: "Contractable — Contract Lifecycle Management",
@@ -10,15 +11,16 @@ export const metadata: Metadata = {
     "Draft, route for review and approval, sign, store, and enforce contracts.",
 };
 
-const NAV = [
+const NAV: { href: string; label: string; roles?: string[] }[] = [
   { href: "/", label: "Dashboard" },
   { href: "/contracts", label: "Contracts" },
   { href: "/counterparties", label: "Counterparties" },
   { href: "/templates", label: "Templates" },
   { href: "/workflows", label: "Workflows" },
   { href: "/obligations", label: "Obligations" },
+  { href: "/outbox", label: "Outbox", roles: ["ADMIN", "LEGAL", "MANAGER"] },
   { href: "/audit", label: "Audit" },
-  { href: "/settings", label: "Settings" },
+  { href: "/settings", label: "Settings", roles: ["ADMIN"] },
 ];
 
 export default async function RootLayout({
@@ -43,7 +45,7 @@ export default async function RootLayout({
                 </span>
               </Link>
               <nav className="hidden items-center gap-1 md:flex">
-                {NAV.map((n) => (
+                {NAV.filter((n) => !n.roles || n.roles.includes(me.role)).map((n) => (
                   <Link
                     key={n.href}
                     href={n.href}
@@ -59,7 +61,7 @@ export default async function RootLayout({
         </header>
         <main className="mx-auto max-w-6xl px-4 py-8">{children}</main>
         <footer className="mx-auto max-w-6xl px-4 pb-10 pt-4 text-xs text-gray-400">
-          Contractable · CLM MVP · signed-in as {me.name}
+          Contractable · CLM MVP · signed-in as {me.name} ({ROLE_LABELS[me.role as Role] ?? me.role})
         </footer>
       </body>
     </html>

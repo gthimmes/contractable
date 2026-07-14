@@ -319,3 +319,20 @@ model AuditEvent {
 
   createdAt DateTime @default(now())
 }
+
+// ---------------------------------------------------------------------------
+// Notifications — an in-app "outbox". A pluggable email transport writes here
+// (and to the console) so notifications are demoable with zero infrastructure;
+// swap in real SMTP/API delivery for production.
+// ---------------------------------------------------------------------------
+
+model EmailMessage {
+  id         String   @id @default(cuid())
+  toEmail    String
+  toName     String?
+  subject    String
+  body       String
+  kind       String // APPROVAL_REQUEST | SIGNATURE_REQUEST | CONTRACT_EXECUTED | CONTRACT_REJECTED | REDLINE_PROPOSED
+  contractId String?
+  createdAt  DateTime @default(now())
+}

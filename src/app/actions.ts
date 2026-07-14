@@ -20,6 +20,7 @@ import {
 import { addObligation, setObligationStatus } from "@/lib/obligations";
 import { proposeRedline, acceptRedline, rejectRedline } from "@/lib/redline";
 import { generateVersionFromTemplate } from "@/lib/generation";
+import { assertCan, type Action, type Actor } from "@/lib/permissions";
 import type { Decision, ObligationType } from "@/lib/constants";
 
 function str(v: FormDataEntryValue | null): string {
@@ -40,6 +41,42 @@ function optNum(v: FormDataEntryValue | null): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+// --- Authorization guards --------------------------------------------------
+
+async function actor(): Promise<Actor & { name: string }> {
+  const me = await getCurrentUser();
+  return { id: me.id, role: me.role, name: me.name };
+}
+
+/** Assert the current user may perform a non-contract-scoped action. */
+async function guard(action: Action) {
+  const me = await actor();
+  assertCan(me, action);
+  return me;
+}
+
+/** Assert the current user may act on a specific contract (role or ownership). */
+async function guardContract(action: Action, contractId: string) {
+  const me = await actor();
+  const c = await prisma.contract.findUnique({
+    where: { id: contractId },
+    select: { ownerId: true, createdById: true },
+  });
+  assertCan(me, action, c ?? undefined);
+  return me;
+}
+
+/** Assert the current user may manage an obligation (via its contract). */
+async function guardObligation(action: Action, obligationId: string) {
+  const me = await actor();
+  const ob = await prisma.obligation.findUnique({
+    where: { id: obligationId },
+    select: { contract: { select: { ownerId: true, createdById: true } } },
+  });
+  assertCan(me, action, ob?.contract ?? undefined);
+  return me;
+}
+
 export async function switchUserAction(formData: FormData) {
   const uid = str(formData.get("userId"));
   const store = await cookies();
@@ -53,7 +90,7 @@ export async function switchUserAction(formData: FormData) {
 }
 
 export async function createContractAction(formData: FormData) {
-  const me = await getCurrentUser();
+  const me = await guard("contract:create");
   const title = str(formData.get("title"));
   if (!title) throw new Error("Title is required.");
 
@@ -94,8 +131,8 @@ export async function createContractAction(formData: FormData) {
 }
 
 export async function startWorkflowAction(formData: FormData) {
-  const me = await getCurrentUser();
   const contractId = str(formData.get("contractId"));
+  const me = await guardContract("workflow:start", contractId);
   const templateId = str(formData.get("templateId"));
   await startWorkflow(contractId, templateId, { id: me.id, name: me.name });
   revalidatePath(`/contracts/${contractId}`);
@@ -118,8 +155,8 @@ export async function decideAction(formData: FormData) {
 }
 
 export async function sendForSignatureAction(formData: FormData) {
-  const me = await getCurrentUser();
   const contractId = str(formData.get("contractId"));
+  const me = await guardContract("signature:manage", contractId);
 
   const names = formData.getAll("signerName").map((v) => str(v));
   const emails = formData.getAll("signerEmail").map((v) => str(v));
@@ -134,8 +171,8 @@ export async function sendForSignatureAction(formData: FormData) {
 }
 
 export async function addObligationAction(formData: FormData) {
-  const me = await getCurrentUser();
   const contractId = str(formData.get("contractId"));
+  const me = await guardContract("obligation:manage", contractId);
   await addObligation(
     contractId,
     {
@@ -152,10 +189,11 @@ export async function addObligationAction(formData: FormData) {
 }
 
 export async function setObligationStatusAction(formData: FormData) {
-  const me = await getCurrentUser();
   const contractId = str(formData.get("contractId"));
+  const obligationId = str(formData.get("obligationId"));
+  const me = await guardObligation("obligation:manage", obligationId);
   await setObligationStatus(
-    str(formData.get("obligationId")),
+    obligationId,
     str(formData.get("status")) as "OPEN" | "DONE" | "WAIVED",
     { id: me.id, name: me.name }
   );
@@ -164,7 +202,7 @@ export async function setObligationStatusAction(formData: FormData) {
 }
 
 export async function addCommentAction(formData: FormData) {
-  const me = await getCurrentUser();
+  const me = await guard("comment:create");
   const contractId = str(formData.get("contractId"));
   const body = str(formData.get("body"));
   if (body) {
@@ -176,8 +214,8 @@ export async function addCommentAction(formData: FormData) {
 }
 
 export async function addVersionAction(formData: FormData) {
-  const me = await getCurrentUser();
   const contractId = str(formData.get("contractId"));
+  const me = await guardContract("contract:version", contractId);
   await addVersion(
     contractId,
     str(formData.get("body")),
@@ -219,8 +257,8 @@ export async function declineAction(formData: FormData) {
 // ===========================================================================
 
 export async function updateContractAction(formData: FormData) {
-  const me = await getCurrentUser();
   const contractId = str(formData.get("contractId"));
+  const me = await guardContract("contract:edit", contractId);
   const counterpartyId = optStr(formData.get("counterpartyId"));
   let counterpartyName = optStr(formData.get("counterparty"));
   if (counterpartyId) {
@@ -249,7 +287,9 @@ export async function updateContractAction(formData: FormData) {
 }
 
 export async function deleteContractAction(formData: FormData) {
-  await deleteContract(str(formData.get("contractId")));
+  const contractId = str(formData.get("contractId"));
+  await guardContract("contract:delete", contractId);
+  await deleteContract(contractId);
   revalidatePath("/contracts");
   redirect("/contracts");
 }
@@ -259,8 +299,8 @@ export async function deleteContractAction(formData: FormData) {
 // ===========================================================================
 
 export async function generateDocumentAction(formData: FormData) {
-  const me = await getCurrentUser();
   const contractId = str(formData.get("contractId"));
+  const me = await guardContract("contract:generate", contractId);
   const templateId = str(formData.get("templateId"));
   let data: Record<string, unknown> = {};
   const raw = str(formData.get("data"));
@@ -279,8 +319,8 @@ export async function generateDocumentAction(formData: FormData) {
 }
 
 export async function proposeRedlineAction(formData: FormData) {
-  const me = await getCurrentUser();
   const contractId = str(formData.get("contractId"));
+  const me = await guardContract("redline:propose", contractId);
   await proposeRedline(
     contractId,
     str(formData.get("body")),
@@ -291,15 +331,15 @@ export async function proposeRedlineAction(formData: FormData) {
 }
 
 export async function acceptRedlineAction(formData: FormData) {
-  const me = await getCurrentUser();
   const contractId = str(formData.get("contractId"));
+  const me = await guardContract("redline:resolve", contractId);
   await acceptRedline(str(formData.get("versionId")), { id: me.id, name: me.name });
   revalidatePath(`/contracts/${contractId}`);
 }
 
 export async function rejectRedlineAction(formData: FormData) {
-  const me = await getCurrentUser();
   const contractId = str(formData.get("contractId"));
+  const me = await guardContract("redline:resolve", contractId);
   await rejectRedline(
     str(formData.get("versionId")),
     optStr(formData.get("reason")),
@@ -314,6 +354,7 @@ export async function rejectRedlineAction(formData: FormData) {
 
 export async function removeSignatureAction(formData: FormData) {
   const contractId = str(formData.get("contractId"));
+  await guardContract("signature:manage", contractId);
   await prisma.signature.delete({
     where: { id: str(formData.get("signatureId")) },
   });
@@ -322,6 +363,8 @@ export async function removeSignatureAction(formData: FormData) {
 
 export async function updateObligationAction(formData: FormData) {
   const contractId = str(formData.get("contractId"));
+  const obligationId = str(formData.get("obligationId"));
+  await guardObligation("obligation:manage", obligationId);
   await prisma.obligation.update({
     where: { id: str(formData.get("obligationId")) },
     data: {
@@ -338,9 +381,9 @@ export async function updateObligationAction(formData: FormData) {
 
 export async function deleteObligationAction(formData: FormData) {
   const contractId = str(formData.get("contractId"));
-  await prisma.obligation.delete({
-    where: { id: str(formData.get("obligationId")) },
-  });
+  const obligationId = str(formData.get("obligationId"));
+  await guardObligation("obligation:manage", obligationId);
+  await prisma.obligation.delete({ where: { id: obligationId } });
   revalidatePath(`/contracts/${contractId}`);
   revalidatePath("/obligations");
 }
@@ -351,7 +394,8 @@ export async function deleteCommentAction(formData: FormData) {
   const comment = await prisma.comment.findUnique({
     where: { id: str(formData.get("commentId")) },
   });
-  if (comment && comment.authorId === me.id) {
+  // Authors delete their own comments; admins can delete any.
+  if (comment && (comment.authorId === me.id || me.role === "ADMIN")) {
     await prisma.comment.delete({ where: { id: comment.id } });
   }
   revalidatePath(`/contracts/${contractId}`);
@@ -374,12 +418,14 @@ function counterpartyData(formData: FormData) {
 }
 
 export async function createCounterpartyAction(formData: FormData) {
+  await guard("counterparty:manage");
   await prisma.counterparty.create({ data: counterpartyData(formData) });
   revalidatePath("/counterparties");
   redirect("/counterparties");
 }
 
 export async function updateCounterpartyAction(formData: FormData) {
+  await guard("counterparty:manage");
   await prisma.counterparty.update({
     where: { id: str(formData.get("id")) },
     data: counterpartyData(formData),
@@ -389,6 +435,7 @@ export async function updateCounterpartyAction(formData: FormData) {
 }
 
 export async function deleteCounterpartyAction(formData: FormData) {
+  await guard("counterparty:manage");
   const id = str(formData.get("id"));
   // Detach from any contracts first (optional relation, keep the contracts).
   await prisma.contract.updateMany({
@@ -404,6 +451,7 @@ export async function deleteCounterpartyAction(formData: FormData) {
 // ===========================================================================
 
 export async function updateOrganizationAction(formData: FormData) {
+  await guard("org:manage");
   const data = {
     name: str(formData.get("name")) || "Our Company",
     legalName: optStr(formData.get("legalName")),
@@ -427,6 +475,7 @@ export async function updateOrganizationAction(formData: FormData) {
 // ===========================================================================
 
 export async function saveTemplateAction(formData: FormData) {
+  await guard("template:manage");
   const id = optStr(formData.get("id"));
   const data = {
     name: str(formData.get("name")),
@@ -444,6 +493,7 @@ export async function saveTemplateAction(formData: FormData) {
 }
 
 export async function deleteTemplateAction(formData: FormData) {
+  await guard("template:manage");
   const id = str(formData.get("id"));
   await prisma.contract.updateMany({
     where: { templateId: id },
@@ -467,6 +517,7 @@ interface StepDraft {
 }
 
 export async function saveWorkflowAction(formData: FormData) {
+  await guard("workflowTemplate:manage");
   const id = optStr(formData.get("id"));
   const name = str(formData.get("name"));
   const description = optStr(formData.get("description"));
@@ -508,6 +559,7 @@ export async function saveWorkflowAction(formData: FormData) {
 }
 
 export async function deleteWorkflowAction(formData: FormData) {
+  await guard("workflowTemplate:manage");
   const id = str(formData.get("id"));
   const inUse = await prisma.workflowInstance.count({ where: { templateId: id } });
   if (inUse > 0) {
@@ -524,6 +576,7 @@ export async function deleteWorkflowAction(formData: FormData) {
 // ===========================================================================
 
 export async function saveUserAction(formData: FormData) {
+  await guard("user:manage");
   const id = optStr(formData.get("id"));
   const data = {
     name: str(formData.get("name")),
@@ -541,6 +594,7 @@ export async function saveUserAction(formData: FormData) {
 }
 
 export async function deleteUserAction(formData: FormData) {
+  await guard("user:manage");
   const id = str(formData.get("id"));
   const refs = await prisma.contract.count({
     where: { OR: [{ createdById: id }, { ownerId: id }] },

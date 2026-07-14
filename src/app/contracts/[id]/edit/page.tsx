@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { getAllUsers } from "@/lib/session";
+import { getAllUsers, getCurrentUser } from "@/lib/session";
+import { can } from "@/lib/permissions";
 import { updateContractAction } from "@/app/actions";
 import { CONTRACT_CATEGORIES } from "@/lib/constants";
 
@@ -21,6 +22,10 @@ export default async function EditContractPage({
     getAllUsers(),
   ]);
   if (!contract) notFound();
+
+  const me = await getCurrentUser();
+  const meActor = { id: me.id, role: me.role };
+  if (!can(meActor, "contract:edit", contract)) redirect(`/contracts/${id}`);
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">

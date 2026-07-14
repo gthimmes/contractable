@@ -1,6 +1,7 @@
 import { prisma } from "./db";
 import { recordAudit } from "./audit";
 import { makeVersion } from "./contracts";
+import { queueEmail, appUrl } from "./email";
 
 /**
  * Propose a redlined revision of a contract. This creates a PROPOSED version
@@ -17,6 +18,7 @@ export async function proposeRedline(
   return prisma.$transaction(async (tx) => {
     const contract = await tx.contract.findUniqueOrThrow({
       where: { id: contractId },
+      include: { owner: true },
     });
     const version = await makeVersion(tx, {
       contractId,
@@ -39,6 +41,19 @@ export async function proposeRedline(
       actorId: actor.id,
       actorLabel: actor.name,
     });
+    // Notify the owner (unless they proposed it themselves).
+    if (contract.owner && contract.owner.id !== actor.id) {
+      await queueEmail(tx, {
+        toEmail: contract.owner.email,
+        toName: contract.owner.name,
+        subject: `Redline proposed: ${contract.reference} — ${contract.title}`,
+        body: `Hi ${contract.owner.name},\n\n${actor.name} proposed a redline on "${contract.title}" (${contract.reference})${
+          note ? `:\n"${note}"` : "."
+        }\n\nReview and accept/reject: ${appUrl()}/contracts/${contractId}\n\n— Contractable`,
+        kind: "REDLINE_PROPOSED",
+        contractId,
+      });
+    }
     return version;
   });
 }

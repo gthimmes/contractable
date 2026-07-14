@@ -1,8 +1,15 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { getCurrentUser } from "@/lib/session";
+import { can } from "@/lib/permissions";
 import { saveTemplateAction } from "@/app/actions";
 import { CONTRACT_CATEGORIES } from "@/lib/constants";
 
 export default async function NewTemplatePage() {
+  const me = await getCurrentUser();
+  const meActor = { id: me.id, role: me.role };
+  if (!can(meActor, "template:manage")) redirect("/templates");
+
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <div>

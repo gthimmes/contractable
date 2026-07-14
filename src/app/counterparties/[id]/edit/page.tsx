@@ -1,6 +1,8 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
+import { getCurrentUser } from "@/lib/session";
+import { can } from "@/lib/permissions";
 import { updateCounterpartyAction } from "@/app/actions";
 
 export default async function EditCounterpartyPage({
@@ -9,6 +11,10 @@ export default async function EditCounterpartyPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const me = await getCurrentUser();
+  const meActor = { id: me.id, role: me.role };
+  if (!can(meActor, "counterparty:manage")) redirect("/counterparties");
+
   const counterparty = await prisma.counterparty.findUnique({ where: { id } });
   if (!counterparty) notFound();
 

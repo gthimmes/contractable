@@ -1,8 +1,14 @@
 import Link from "next/link";
-import { getAllUsers } from "@/lib/session";
+import { redirect } from "next/navigation";
+import { getAllUsers, getCurrentUser } from "@/lib/session";
+import { can } from "@/lib/permissions";
 import { WorkflowBuilder } from "@/components/WorkflowBuilder";
 
 export default async function NewWorkflowPage() {
+  const me = await getCurrentUser();
+  const meActor = { id: me.id, role: me.role };
+  if (!can(meActor, "workflowTemplate:manage")) redirect("/workflows");
+
   const users = await getAllUsers();
   return (
     <div className="mx-auto max-w-3xl space-y-6">

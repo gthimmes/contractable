@@ -9,6 +9,7 @@ import { renderTemplate } from "../src/lib/template";
 const days = (n: number) => new Date(Date.now() + n * 24 * 60 * 60 * 1000);
 
 async function reset() {
+  await prisma.emailMessage.deleteMany();
   await prisma.auditEvent.deleteMany();
   await prisma.signature.deleteMany();
   await prisma.workflowStepAction.deleteMany();

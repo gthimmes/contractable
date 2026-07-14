@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
+import { getCurrentUser } from "@/lib/session";
+import { can } from "@/lib/permissions";
 import { deleteWorkflowAction } from "@/app/actions";
 import { ConfirmSubmit } from "@/components/ConfirmSubmit";
 import {
@@ -24,6 +26,10 @@ export default async function WorkflowsPage() {
     },
   });
 
+  const me = await getCurrentUser();
+  const meActor = { id: me.id, role: me.role };
+  const canManage = can(meActor, "workflowTemplate:manage");
+
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4">
@@ -35,9 +41,11 @@ export default async function WorkflowsPage() {
             their assignees.
           </p>
         </div>
-        <Link href="/workflows/new" className="btn-primary shrink-0">
-          + New workflow
-        </Link>
+        {canManage && (
+          <Link href="/workflows/new" className="btn-primary shrink-0">
+            + New workflow
+          </Link>
+        )}
       </div>
 
       <div className="grid gap-5 md:grid-cols-2">
@@ -57,25 +65,27 @@ export default async function WorkflowsPage() {
                 <span className="text-xs text-gray-400">
                   {t._count.instances} run{t._count.instances === 1 ? "" : "s"}
                 </span>
-                <div className="flex items-center gap-2">
-                  <Link
-                    href={`/workflows/${t.id}/edit`}
-                    className="text-xs font-medium text-brand-600 hover:underline"
-                  >
-                    Edit
-                  </Link>
-                  {t._count.instances === 0 && (
-                    <form action={deleteWorkflowAction}>
-                      <input type="hidden" name="id" value={t.id} />
-                      <ConfirmSubmit
-                        message={`Delete workflow "${t.name}"?`}
-                        className="text-xs font-medium text-red-600 hover:underline"
-                      >
-                        Delete
-                      </ConfirmSubmit>
-                    </form>
-                  )}
-                </div>
+                {canManage && (
+                  <div className="flex items-center gap-2">
+                    <Link
+                      href={`/workflows/${t.id}/edit`}
+                      className="text-xs font-medium text-brand-600 hover:underline"
+                    >
+                      Edit
+                    </Link>
+                    {t._count.instances === 0 && (
+                      <form action={deleteWorkflowAction}>
+                        <input type="hidden" name="id" value={t.id} />
+                        <ConfirmSubmit
+                          message={`Delete workflow "${t.name}"?`}
+                          className="text-xs font-medium text-red-600 hover:underline"
+                        >
+                          Delete
+                        </ConfirmSubmit>
+                      </form>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 

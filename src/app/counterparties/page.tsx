@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
+import { getCurrentUser } from "@/lib/session";
+import { can } from "@/lib/permissions";
 import { EmptyState } from "@/components/ui";
 import { ConfirmSubmit } from "@/components/ConfirmSubmit";
 import { deleteCounterpartyAction } from "@/app/actions";
@@ -10,13 +12,19 @@ export default async function CounterpartiesPage() {
     include: { _count: { select: { contracts: true } } },
   });
 
+  const me = await getCurrentUser();
+  const meActor = { id: me.id, role: me.role };
+  const canManage = can(meActor, "counterparty:manage");
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold tracking-tight">Counterparties</h1>
-        <Link href="/counterparties/new" className="btn-primary">
-          + New counterparty
-        </Link>
+        {canManage && (
+          <Link href="/counterparties/new" className="btn-primary">
+            + New counterparty
+          </Link>
+        )}
       </div>
 
       {counterparties.length === 0 ? (
@@ -66,15 +74,17 @@ export default async function CounterpartiesPage() {
                   <td className="px-4 py-3 text-gray-600">{c.jurisdiction ?? "—"}</td>
                   <td className="px-4 py-3 text-gray-600">{c._count.contracts}</td>
                   <td className="px-4 py-3 text-right">
-                    <form action={deleteCounterpartyAction}>
-                      <input type="hidden" name="id" value={c.id} />
-                      <ConfirmSubmit
-                        message="Delete this counterparty?"
-                        className="text-xs font-medium text-red-600 hover:underline"
-                      >
-                        Delete
-                      </ConfirmSubmit>
-                    </form>
+                    {canManage && (
+                      <form action={deleteCounterpartyAction}>
+                        <input type="hidden" name="id" value={c.id} />
+                        <ConfirmSubmit
+                          message="Delete this counterparty?"
+                          className="text-xs font-medium text-red-600 hover:underline"
+                        >
+                          Delete
+                        </ConfirmSubmit>
+                      </form>
+                    )}
                   </td>
                 </tr>
               ))}

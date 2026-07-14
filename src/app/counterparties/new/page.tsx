@@ -1,7 +1,14 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { getCurrentUser } from "@/lib/session";
+import { can } from "@/lib/permissions";
 import { createCounterpartyAction } from "@/app/actions";
 
 export default async function NewCounterpartyPage() {
+  const me = await getCurrentUser();
+  const meActor = { id: me.id, role: me.role };
+  if (!can(meActor, "counterparty:manage")) redirect("/counterparties");
+
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div>

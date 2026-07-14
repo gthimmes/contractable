@@ -1,9 +1,16 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
+import { getCurrentUser } from "@/lib/session";
+import { can } from "@/lib/permissions";
 import { createContractAction } from "@/app/actions";
 import { CONTRACT_CATEGORIES } from "@/lib/constants";
 
 export default async function NewContractPage() {
+  const me = await getCurrentUser();
+  const meActor = { id: me.id, role: me.role };
+  if (!can(meActor, "contract:create")) redirect("/contracts");
+
   const [templates, counterparties] = await Promise.all([
     prisma.contractTemplate.findMany({ orderBy: { name: "asc" } }),
     prisma.counterparty.findMany({ orderBy: { name: "asc" } }),

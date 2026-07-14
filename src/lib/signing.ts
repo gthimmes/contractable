@@ -2,6 +2,7 @@ import { randomBytes } from "crypto";
 import { prisma } from "./db";
 import { recordAudit } from "./audit";
 import { completeSignatureStep } from "./workflow";
+import { queueEmails, appUrl } from "./email";
 
 function newToken(): string {
   return randomBytes(24).toString("hex");
@@ -70,6 +71,19 @@ export async function createSignatureRequests(
       actorLabel: actor.name,
       data: { signers: signers.map((s) => s.signerEmail) },
     });
+
+    // Email each signer their unique signing link.
+    await queueEmails(
+      tx,
+      created.map((sig) => ({
+        toEmail: sig.signerEmail,
+        toName: sig.signerName,
+        subject: `Signature requested: ${contract.reference} — ${contract.title}`,
+        body: `Hi ${sig.signerName},\n\nYou've been asked to sign "${contract.title}" (${contract.reference}).\n\nReview & sign here: ${appUrl()}/sign/${sig.token}\n\n— Contractable`,
+        kind: "SIGNATURE_REQUEST" as const,
+        contractId,
+      }))
+    );
 
     return created;
   });

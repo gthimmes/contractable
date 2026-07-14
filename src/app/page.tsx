@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/session";
+import { can } from "@/lib/permissions";
 import { upcomingObligations, effectiveStatus } from "@/lib/obligations";
 import {
   StatusBadge,
@@ -80,9 +81,11 @@ export default async function DashboardPage() {
             Welcome back, {me.name.split(" ")[0]}.
           </p>
         </div>
-        <Link href="/contracts/new" className="btn-primary">
-          + New Contract
-        </Link>
+        {can({ id: me.id, role: me.role }, "contract:create") && (
+          <Link href="/contracts/new" className="btn-primary">
+            + New Contract
+          </Link>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">

@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { getAllUsers } from "@/lib/session";
+import { getAllUsers, getCurrentUser } from "@/lib/session";
+import { can } from "@/lib/permissions";
 import { WorkflowBuilder, type WorkflowInit } from "@/components/WorkflowBuilder";
 import type { StepType } from "@/lib/constants";
 
@@ -11,6 +12,10 @@ export default async function EditWorkflowPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const me = await getCurrentUser();
+  const meActor = { id: me.id, role: me.role };
+  if (!can(meActor, "workflowTemplate:manage")) redirect("/workflows");
+
   const [template, users] = await Promise.all([
     prisma.workflowTemplate.findUnique({
       where: { id },

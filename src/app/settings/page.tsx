@@ -1,4 +1,6 @@
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
+import { getCurrentUser } from "@/lib/session";
 import { ConfirmSubmit } from "@/components/ConfirmSubmit";
 import {
   updateOrganizationAction,
@@ -8,6 +10,9 @@ import {
 import { ROLES, ROLE_LABELS, type Role } from "@/lib/constants";
 
 export default async function SettingsPage() {
+  const me = await getCurrentUser();
+  if (me.role !== "ADMIN") redirect("/");
+
   const [org, users] = await Promise.all([
     prisma.organization.findFirst(),
     prisma.user.findMany({ orderBy: { createdAt: "asc" } }),

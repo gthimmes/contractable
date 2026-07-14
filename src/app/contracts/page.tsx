@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
+import { getCurrentUser } from "@/lib/session";
+import { can } from "@/lib/permissions";
 import { StatusBadge, formatDate, formatMoney, EmptyState } from "@/components/ui";
 import {
   CONTRACT_STATUS,
@@ -31,13 +33,18 @@ export default async function ContractsPage({
     include: { owner: true },
   });
 
+  const me = await getCurrentUser();
+  const meActor = { id: me.id, role: me.role };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold tracking-tight">Contracts</h1>
-        <Link href="/contracts/new" className="btn-primary">
-          + New Contract
-        </Link>
+        {can(meActor, "contract:create") && (
+          <Link href="/contracts/new" className="btn-primary">
+            + New Contract
+          </Link>
+        )}
       </div>
 
       {/* Status filter */}
