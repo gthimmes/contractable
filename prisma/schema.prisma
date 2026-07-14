@@ -1,0 +1,279 @@
+// Contractable — data model for a contract lifecycle management platform.
+//
+// NOTE ON DATABASE: this uses SQLite for zero-infra local development. SQLite
+// (via Prisma) does not support native enums or scalar arrays, so all
+// "enum-like" fields are String columns validated in the application layer
+// (see src/lib/constants.ts). To move to Postgres, change the provider below
+// to "postgresql" and point DATABASE_URL at your database — the schema is
+// otherwise portable.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// People
+// ---------------------------------------------------------------------------
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  role      String // ADMIN | LEGAL | MANAGER | SIGNER | VIEWER
+  title     String?
+  createdAt DateTime @default(now())
+
+  createdContracts Contract[]          @relation("ContractCreatedBy")
+  ownedContracts   Contract[]          @relation("ContractOwner")
+  versions         ContractVersion[]
+  stepActions      WorkflowStepAction[]
+  obligations      Obligation[]
+  comments         Comment[]
+  auditEvents      AuditEvent[]
+}
+
+// ---------------------------------------------------------------------------
+// Contract content
+// ---------------------------------------------------------------------------
+
+model ContractTemplate {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  category    String? // e.g. NDA, MSA, SOW, EMPLOYMENT
+  body        String // markdown/plain-text body with {{placeholders}}
+  createdAt   DateTime @default(now())
+
+  contracts Contract[]
+}
+
+model Contract {
+  id          String  @id @default(cuid())
+  reference   String  @unique // human-friendly, e.g. CTR-0001
+  title       String
+  description String?
+  counterparty String?
+  category    String? // NDA | MSA | SOW | EMPLOYMENT | VENDOR | OTHER
+  status      String  @default("DRAFT") // see CONTRACT_STATUS in constants
+
+  value    Float?
+  currency String? @default("USD")
+
+  effectiveDate  DateTime?
+  expirationDate DateTime?
+  executedAt     DateTime?
+
+  createdById String
+  createdBy   User   @relation("ContractCreatedBy", fields: [createdById], references: [id])
+  ownerId     String?
+  owner       User?  @relation("ContractOwner", fields: [ownerId], references: [id])
+
+  templateId String?
+  template   ContractTemplate? @relation(fields: [templateId], references: [id])
+
+  currentVersionId String?           @unique
+  currentVersion   ContractVersion?  @relation("CurrentVersion", fields: [currentVersionId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  versions          ContractVersion[]  @relation("ContractVersions")
+  workflowInstances WorkflowInstance[]
+  signatures        Signature[]
+  obligations       Obligation[]
+  comments          Comment[]
+  auditEvents       AuditEvent[]
+}
+
+model ContractVersion {
+  id            String   @id @default(cuid())
+  contractId    String
+  contract      Contract @relation("ContractVersions", fields: [contractId], references: [id], onDelete: Cascade)
+  versionNumber Int
+  body          String
+  contentHash   String // sha256 of body, anchors signatures/audit
+  note          String?
+  createdById   String
+  createdBy     User     @relation(fields: [createdById], references: [id])
+  createdAt     DateTime @default(now())
+
+  currentFor Contract?   @relation("CurrentVersion")
+  signatures Signature[]
+
+  @@unique([contractId, versionNumber])
+}
+
+// ---------------------------------------------------------------------------
+// Workflow engine — templates (reusable) and instances (running)
+// ---------------------------------------------------------------------------
+
+model WorkflowTemplate {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  steps     WorkflowStepTemplate[]
+  instances WorkflowInstance[]
+}
+
+model WorkflowStepTemplate {
+  id         String @id @default(cuid())
+  templateId String
+  template   WorkflowTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  order Int
+  name  String
+  type  String // REVIEW | APPROVAL | SIGNATURE
+
+  // Assignment: by role (any/all users of a role) or a specific user.
+  assigneeRole   String? // ADMIN | LEGAL | MANAGER | SIGNER | VIEWER
+  assigneeUserId String?
+
+  completionRule String  @default("ALL") // ALL | ANY  (of the step's assignees)
+  allowReject    Boolean @default(true)
+
+  @@unique([templateId, order])
+}
+
+model WorkflowInstance {
+  id         String   @id @default(cuid())
+  contractId String
+  contract   Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  templateId String
+  template   WorkflowTemplate @relation(fields: [templateId], references: [id])
+
+  status           String   @default("ACTIVE") // ACTIVE | COMPLETED | REJECTED | CANCELLED
+  currentStepOrder Int       @default(0)
+  startedAt        DateTime  @default(now())
+  completedAt      DateTime?
+
+  steps WorkflowStepInstance[]
+}
+
+model WorkflowStepInstance {
+  id         String           @id @default(cuid())
+  instanceId String
+  instance   WorkflowInstance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+
+  order          Int
+  name           String
+  type           String // REVIEW | APPROVAL | SIGNATURE
+  completionRule String  @default("ALL")
+  allowReject    Boolean @default(true)
+  status         String  @default("PENDING") // PENDING | ACTIVE | COMPLETED | REJECTED | SKIPPED
+
+  activatedAt DateTime?
+  completedAt DateTime?
+
+  actions WorkflowStepAction[]
+
+  @@unique([instanceId, order])
+}
+
+model WorkflowStepAction {
+  id     String               @id @default(cuid())
+  stepId String
+  step   WorkflowStepInstance @relation(fields: [stepId], references: [id], onDelete: Cascade)
+
+  assigneeId String
+  assignee   User   @relation(fields: [assigneeId], references: [id])
+
+  decision String  @default("PENDING") // PENDING | APPROVED | REJECTED | REVIEWED | SIGNED
+  comment  String?
+  actedAt  DateTime?
+
+  @@unique([stepId, assigneeId])
+}
+
+// ---------------------------------------------------------------------------
+// Signatures — built-in e-signature with tamper-evident audit
+// ---------------------------------------------------------------------------
+
+model Signature {
+  id         String   @id @default(cuid())
+  contractId String
+  contract   Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  versionId  String
+  version    ContractVersion @relation(fields: [versionId], references: [id])
+
+  signerName  String
+  signerEmail String
+  order       Int    @default(0)
+  token       String @unique // signing-link token
+
+  status       String    @default("PENDING") // PENDING | SIGNED | DECLINED
+  signatureData String?  // typed name or drawn-signature payload
+  signatureType String?  // TYPED | DRAWN
+  documentHash String?   // contentHash of the version at signing time
+  signedAt     DateTime?
+  declinedAt   DateTime?
+  ipAddress    String?
+
+  createdAt DateTime @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Enforcement — obligations, renewals, expirations
+// ---------------------------------------------------------------------------
+
+model Obligation {
+  id         String   @id @default(cuid())
+  contractId String
+  contract   Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  title       String
+  description String?
+  type        String // PAYMENT | RENEWAL | DELIVERABLE | COMPLIANCE | EXPIRATION | OTHER
+  status      String   @default("OPEN") // OPEN | DONE | WAIVED  (OVERDUE derived from dueDate)
+  dueDate     DateTime?
+  ownerId     String?
+  owner       User?    @relation(fields: [ownerId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// Activity & audit
+// ---------------------------------------------------------------------------
+
+model Comment {
+  id         String   @id @default(cuid())
+  contractId String
+  contract   Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  authorId   String
+  author     User     @relation(fields: [authorId], references: [id])
+  body       String
+  createdAt  DateTime @default(now())
+}
+
+// Append-only, hash-chained audit log. Each event stores the hash of the
+// previous event, making tampering detectable.
+model AuditEvent {
+  id         String   @id @default(cuid())
+  contractId String?
+  contract   Contract? @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  entityType String // CONTRACT | WORKFLOW | STEP | SIGNATURE | OBLIGATION
+  entityId   String
+  action     String
+  summary    String
+
+  actorId    String?
+  actor      User?   @relation(fields: [actorId], references: [id])
+  actorLabel String?
+
+  dataJson String? // JSON-encoded extra detail
+
+  prevHash String
+  hash     String
+
+  createdAt DateTime @default(now())
+}
