@@ -5,10 +5,12 @@ import { createSignatureRequests, signDocument } from "../src/lib/signing";
 import { addObligation } from "../src/lib/obligations";
 import { proposeRedline } from "../src/lib/redline";
 import { renderTemplate } from "../src/lib/template";
+import { hashPassword } from "../src/lib/password";
 
 const days = (n: number) => new Date(Date.now() + n * 24 * 60 * 60 * 1000);
 
 async function reset() {
+  await prisma.session.deleteMany();
   await prisma.emailMessage.deleteMany();
   await prisma.auditEvent.deleteMany();
   await prisma.signature.deleteMany();
@@ -102,6 +104,9 @@ async function main() {
   const marcus = await prisma.user.create({ data: { name: "Marcus Manager", email: "marcus@acme.example", role: "MANAGER", title: "Director, Procurement" } });
   const sam = await prisma.user.create({ data: { name: "Sam Signer", email: "sam@acme.example", role: "SIGNER", title: "CEO" } });
   await prisma.user.create({ data: { name: "Vic Viewer", email: "vic@acme.example", role: "VIEWER", title: "Auditor" } });
+
+  // Demo credentials: every seeded user logs in with the password "password".
+  await prisma.user.updateMany({ data: { passwordHash: hashPassword("password") } });
 
   console.log("Creating counterparties…");
   const globex = await prisma.counterparty.create({ data: { name: "Globex Corporation", legalName: "Globex Corporation", address: "500 Globex Plaza, Cypress Creek", contactName: "Hank Scorpio", contactEmail: "hank@globex.example", jurisdiction: "the State of New York" } });

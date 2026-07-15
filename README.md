@@ -22,9 +22,21 @@ npm run setup      # create the database + load seed data
 npm run dev        # start the app at http://localhost:3000
 ```
 
-Then open **http://localhost:3000**. Use the **“Acting as”** switcher in the
-top-right to change identity — auth is intentionally stubbed for the MVP so a
-single person can walk a contract through every role.
+Then open **http://localhost:3000** and **sign in**. Every seeded user has the
+password **`password`**:
+
+| Email | Role |
+| --- | --- |
+| `alice@acme.example` | Admin |
+| `larry@acme.example` / `nina@acme.example` | Legal |
+| `mona@acme.example` / `marcus@acme.example` | Manager |
+| `sam@acme.example` | Signer |
+| `vic@acme.example` | Viewer |
+
+Sign in as **Alice** (admin) to see everything. Admins get a **“View as”**
+impersonation switcher in the top-right, so one person can still walk a contract
+through every role — a banner shows when you're impersonating, and selecting
+your admin account returns you.
 
 Other commands:
 
@@ -90,10 +102,15 @@ src/
     obligations.ts Enforcement: obligations, derived OVERDUE status, upcoming query
     permissions.ts RBAC policy — can()/assertCan(), roles + owner grants
     email.ts       Pluggable notification transport → outbox + console
-    session.ts     Current-user resolution (cookie-based; swap for real auth)
+    auth.ts        Login sessions, scrypt password verify, admin impersonation
+    password.ts    Pure scrypt hash/verify (shared with the seed)
+    session.ts     getCurrentUser() from the session (redirects to /login)
     *.test.ts      68 unit tests (workflow decisions, template engine, diff engine)
   app/
-    page.tsx           Dashboard (KPIs, my approvals, obligations, activity)
+    layout.tsx         Minimal root shell (public: /login, /sign)
+    login/             Sign-in page
+    (app)/             Authenticated route group — auth-gated layout + all pages
+    (app)/page.tsx     Dashboard (KPIs, my approvals, obligations, activity)
     contracts/         List, new, detail, and edit pages
     counterparties/    Counterparty CRUD
     templates/         Contract-template CRUD (merge fields auto-detected)
@@ -172,6 +189,19 @@ Every state change appends to an **append-only, hash-chained** log: each
 event's hash covers the previous event's hash, so any retroactive edit breaks
 the chain from that point forward. The Audit page runs `verifyAuditChain` live.
 
+### Authentication & sessions
+
+Login is real and self-contained: passwords are hashed with **scrypt**
+(`password.ts`, no external deps), and a successful sign-in creates a
+server-side **`Session`** row whose random token lives in an httpOnly cookie.
+Every route under the **`(app)` route group** is protected by its layout calling
+`getCurrentUser()`, which resolves the session or **redirects to `/login`**;
+`/login` and the public `/sign/<token>` page live outside that group. Admins can
+**impersonate** any user (to demo/verify roles) — the real admin id is stashed
+so they can always return, and only an admin can start it. Swapping in SSO/OAuth
+means replacing `auth.ts`'s credential check; the session/authorization layers
+above it don't change.
+
 ### Role-based access control
 
 `permissions.ts` is a single pure policy module. `can(actor, action, resource?)`
@@ -180,9 +210,9 @@ use, and **every mutating server action calls `assertCan`** as the real
 security boundary (hiding a button is not access control). Roles: `ADMIN`,
 `LEGAL`, `MANAGER`, `SIGNER`, `VIEWER`. Contract-scoped actions also grant to
 the contract's **owner/creator**, so a manager who owns a deal can act on it
-even if their role alone wouldn't. Try it: switch to **Vic Viewer** — every
-mutation control disappears, admin-only nav (Settings, Outbox) is hidden, and
-direct navigation to a guarded page redirects.
+even if their role alone wouldn't. Try it: as an admin, impersonate **Vic
+Viewer** — every mutation control disappears, admin-only nav (Settings, Outbox)
+is hidden, and direct navigation to a guarded page redirects.
 
 ### Email notifications
 
@@ -203,10 +233,11 @@ only) shows everything sent.
   from `sqlite` to `postgresql` and point `DATABASE_URL` at your Postgres
   instance; the schema is otherwise portable. (SQLite is used here only to keep
   local setup zero-infrastructure.)
-- **Authentication** — role-based *authorization* is already enforced in every
-  server action (`permissions.ts`). What's stubbed is *authentication*: replace
-  `src/lib/session.ts` and the identity switcher with real login/SSO so the
-  acting user is established by a session instead of a cookie the user can set.
+- **Authentication** — real email/password login with server-side sessions is
+  built in (`auth.ts`). For an organization, swap the credential check in
+  `auth.ts` for SSO/OAuth (Google, Okta, SAML) — the session and authorization
+  layers stay the same. Passwords here use scrypt; add rate-limiting and a
+  password-reset flow for production.
 - **E-signature** — the built-in signer is self-contained. To use a third-party
   provider (e.g. DocuSign), implement an alternative behind the signing module.
 - **Email delivery** — notifications are written to the in-app outbox and the
@@ -223,13 +254,14 @@ propose/accept/reject; configurable multi-step workflows (review/approval/
 signature) with a visual builder, role- and user-based assignment, ALL/ANY
 rules, and rejection handling; built-in ordered e-signature with hashing;
 contract versioning with lineage; obligation tracking with overdue detection;
-hash-chained audit with verification; **role-based access control enforced in
-every server action**; **email notifications with an in-app outbox**;
-counterparties, organization, and user admin; and full insert/edit/delete
-across contracts, templates, workflows, counterparties, obligations, signers,
-comments, and users.
+hash-chained audit with verification; **email/password authentication with
+server-side sessions and admin impersonation**; **role-based access control
+enforced in every server action**; **email notifications with an in-app
+outbox**; counterparties, organization, and user admin; and full
+insert/edit/delete across contracts, templates, workflows, counterparties,
+obligations, signers, comments, and users.
 
-**Natural next steps:** real authentication/SSO (authorization is done; the
-cookie-based identity switcher is the one remaining stub), real email delivery,
-PDF export of executed contracts, clause libraries and conditional template
-sections, and full-text search.
+**Natural next steps:** SSO/OAuth (the credential check is the only swap point;
+sessions + authorization are done), real email delivery, PDF export of executed
+contracts, clause libraries and conditional template sections, and full-text
+search.

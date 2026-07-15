@@ -2,9 +2,15 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { cookies } from "next/headers";
 import { prisma } from "@/lib/db";
-import { getCurrentUser, currentUserCookieName } from "@/lib/session";
+import { getCurrentUser } from "@/lib/session";
+import {
+  login,
+  logout,
+  createSession,
+  getImpersonatorId,
+  setImpersonator,
+} from "@/lib/auth";
 import {
   createContract,
   addVersion,
@@ -77,16 +83,42 @@ async function guardObligation(action: Action, obligationId: string) {
   return me;
 }
 
-export async function switchUserAction(formData: FormData) {
-  const uid = str(formData.get("userId"));
-  const store = await cookies();
-  store.set(currentUserCookieName(), uid, {
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 30,
-  });
+// --- Authentication --------------------------------------------------------
+
+export async function loginAction(formData: FormData) {
+  const email = str(formData.get("email"));
+  const password = str(formData.get("password"));
+  const ok = await login(email, password);
+  if (!ok) redirect("/login?error=1");
+  redirect("/");
+}
+
+export async function logoutAction() {
+  await logout();
+  redirect("/login");
+}
+
+/**
+ * Admin impersonation: act as another user (to demo/verify role behaviour).
+ * The real admin id is preserved so they can return. Only an admin — or an
+ * already-active impersonation started by one — may do this.
+ */
+export async function impersonateAction(formData: FormData) {
+  const me = await getCurrentUser();
+  const impersonatorId = await getImpersonatorId();
+  const realAdminId = impersonatorId ?? (me.role === "ADMIN" ? me.id : null);
+  if (!realAdminId) throw new Error("Only admins can impersonate.");
+
+  const targetId = str(formData.get("userId"));
+  if (targetId === realAdminId) {
+    await setImpersonator(null); // returning to self
+    await createSession(realAdminId);
+  } else {
+    await setImpersonator(realAdminId);
+    await createSession(targetId);
+  }
   revalidatePath("/", "layout");
+  redirect("/");
 }
 
 export async function createContractAction(formData: FormData) {

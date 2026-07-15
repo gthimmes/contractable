@@ -54,12 +54,13 @@ model Counterparty {
 // ---------------------------------------------------------------------------
 
 model User {
-  id        String   @id @default(cuid())
-  name      String
-  email     String   @unique
-  role      String // ADMIN | LEGAL | MANAGER | SIGNER | VIEWER
-  title     String?
-  createdAt DateTime @default(now())
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  role         String // ADMIN | LEGAL | MANAGER | SIGNER | VIEWER
+  title        String?
+  passwordHash String? // scrypt "salt:hash"; null = cannot log in (e.g. external signer)
+  createdAt    DateTime @default(now())
 
   createdContracts Contract[]          @relation("ContractCreatedBy")
   ownedContracts   Contract[]          @relation("ContractOwner")
@@ -68,6 +69,18 @@ model User {
   obligations      Obligation[]
   comments         Comment[]
   auditEvents      AuditEvent[]
+  sessions         Session[]
+}
+
+// Server-side login sessions. A random token is stored in an httpOnly cookie;
+// this row is the server's record so sessions can be validated and revoked.
+model Session {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
 }
 
 // ---------------------------------------------------------------------------
