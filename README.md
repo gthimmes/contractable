@@ -78,6 +78,9 @@ Two more headline flows to try:
   shown as **tracked changes** (a word-level diff). **Accept** it to make it the
   current text or **Reject** it. Anyone reviewing can **Propose a redline** of
   their own.
+- **Download a PDF** — open the executed `CTR-0005` and click **Download PDF**
+  for the agreement plus a signature-certificate page (signer, method,
+  timestamp, IP, and document hash).
 
 Seeded users: `Alice Admin`, `Larry Legal` & `Nina Counsel` (Legal),
 `Mona Manager` & `Marcus Manager` (Managers), `Sam Signer`, `Vic Viewer`.
@@ -98,6 +101,8 @@ src/
     template.ts    Dependency-free template engine ({{merge}}, |helpers, if/each) + tests
     generation.ts  Binds Organization/Counterparty/contract data into a template → version
     diff.ts        Word-level LCS diff for redlines (tracked changes) + tests
+    pdf.ts         Dependency-free PDF writer (standard-14 fonts, real wrapping) + tests
+    contract-pdf.ts Lays out a contract as a PDF: summary + document + signature certificate
     redline.ts     Propose / accept / reject revisions as versions
     obligations.ts Enforcement: obligations, derived OVERDUE status, upcoming query
     permissions.ts RBAC policy — can()/assertCan(), roles + owner grants
@@ -183,6 +188,22 @@ time, the signer, timestamp, and IP. Signing is **ordered** — a signer is
 blocked until everyone ahead of them has signed. The final signature completes
 the workflow's signature step and executes the contract.
 
+### PDF export
+
+Any contract with a generated document can be **downloaded as a PDF**
+(`Download PDF` on the contract page → `/contracts/<id>/pdf`). The file has a
+cover with the deal summary, the full agreement text, and a **signature
+certificate** page listing every signer with their method, timestamp, IP
+address, and the SHA-256 hash of the exact document they signed — plus the
+current version's content hash. Non-executed contracts are watermarked *DRAFT*.
+
+The generator (`pdf.ts`) is **dependency-free**, in keeping with the template
+and diff engines: it emits valid PDF/1.4 bytes using the standard-14 fonts (no
+embedding, so files stay tiny) and wraps text accurately using the built-in
+Helvetica width metrics. `contract-pdf.ts` is a pure layout function (no DB), so
+it is unit-tested directly; the route handler just loads data and streams the
+result with `Content-Disposition: attachment`.
+
 ### Tamper-evident audit
 
 Every state change appends to an **append-only, hash-chained** log: each
@@ -249,7 +270,8 @@ only) shows everything sent.
 ## What's built vs. next
 
 **Built:** document generation from data-bound templates (with live preview and
-a visual template CRUD); redlining with tracked-changes diffs and
+a visual template CRUD); **PDF export of contracts with a signature
+certificate**; redlining with tracked-changes diffs and
 propose/accept/reject; configurable multi-step workflows (review/approval/
 signature) with a visual builder, role- and user-based assignment, ALL/ANY
 rules, and rejection handling; built-in ordered e-signature with hashing;
@@ -262,6 +284,5 @@ insert/edit/delete across contracts, templates, workflows, counterparties,
 obligations, signers, comments, and users.
 
 **Natural next steps:** SSO/OAuth (the credential check is the only swap point;
-sessions + authorization are done), real email delivery, PDF export of executed
-contracts, clause libraries and conditional template sections, and full-text
-search.
+sessions + authorization are done), real email delivery, clause libraries and
+conditional template sections, and full-text search.

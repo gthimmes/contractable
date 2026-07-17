@@ -160,6 +160,16 @@ export default async function ContractDetailPage({
             )}
           </div>
           <div className="flex items-center gap-2">
+            {contract.currentVersion && (
+              <a
+                href={`/contracts/${contract.id}/pdf`}
+                className="btn-secondary"
+                // A route handler streams the file; let the browser download it.
+                download
+              >
+                Download PDF
+              </a>
+            )}
             {perm.edit && (
               <Link href={`/contracts/${contract.id}/edit`} className="btn-secondary">
                 Edit
