@@ -20,6 +20,14 @@ const KIND_COLORS: Record<string, string> = {
   REDLINE_PROPOSED: "bg-blue-100 text-blue-800",
 };
 
+// Delivery outcome: LOGGED = outbox only (no SMTP configured), SENT = relayed
+// over SMTP, FAILED = SMTP attempt failed (error shown on the card).
+const STATUS_COLORS: Record<string, string> = {
+  LOGGED: "bg-gray-100 text-gray-600",
+  SENT: "bg-emerald-100 text-emerald-800",
+  FAILED: "bg-red-100 text-red-800",
+};
+
 export default async function OutboxPage() {
   const me = await getCurrentUser();
   // Internal ops view — not for external signers or read-only viewers.
@@ -36,8 +44,9 @@ export default async function OutboxPage() {
         <h1 className="text-2xl font-semibold tracking-tight">Notifications outbox</h1>
         <p className="text-sm text-gray-500">
           Every notification the system has sent — approval requests, signing
-          links, and status updates. In this MVP the transport writes here (and
-          to the server console); swap in real email delivery for production.
+          links, and status updates. Messages are always recorded here; when
+          SMTP is configured (SMTP_HOST et al.) they are also delivered as real
+          email and the delivery outcome is shown on each card.
         </p>
       </div>
 
@@ -58,9 +67,20 @@ export default async function OutboxPage() {
                   <div className="mt-0.5 text-xs text-gray-500">
                     To: {m.toName ? `${m.toName} <${m.toEmail}>` : m.toEmail}
                   </div>
+                  {m.status === "FAILED" && m.deliveryError && (
+                    <div className="mt-0.5 text-xs text-red-600">{m.deliveryError}</div>
+                  )}
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-1 text-xs text-gray-400">
-                  <span>{formatDateTime(m.createdAt)}</span>
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`badge ${STATUS_COLORS[m.status] ?? "bg-gray-100 text-gray-600"}`}
+                      title={m.deliveryError ?? undefined}
+                    >
+                      {m.status}
+                    </span>
+                    <span>{formatDateTime(m.createdAt)}</span>
+                  </div>
                   {m.contractId && (
                     <Link href={`/contracts/${m.contractId}`} className="text-brand-600 hover:underline">
                       Open contract →

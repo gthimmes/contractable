@@ -347,5 +347,7 @@ model EmailMessage {
   body       String
   kind       String // APPROVAL_REQUEST | SIGNATURE_REQUEST | CONTRACT_EXECUTED | CONTRACT_REJECTED | REDLINE_PROPOSED
   contractId String?
+  status        String  @default("LOGGED") // LOGGED (outbox only) | SENT (SMTP ok) | FAILED
+  deliveryError String?
   createdAt  DateTime @default(now())
 }

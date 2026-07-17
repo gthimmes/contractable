@@ -237,14 +237,19 @@ is hidden, and direct navigation to a guarded page redirects.
 
 ### Email notifications
 
-`email.ts` is a **pluggable transport**: this MVP persists every message to an
-in-app **outbox** (`EmailMessage`) and logs to the console, so notifications
-are demoable with zero infrastructure — swap the `deliver` function for SMTP or
-a provider API in production, and the call sites don't change. Notifications
-fire on: an approval/review step activating (to its assignees), a contract sent
-for signature (each signer's unique link), a contract executed or rejected (to
-the owner), and a redline proposed (to the owner). The **Outbox** page (staff
-only) shows everything sent.
+`email.ts` persists every message to an in-app **outbox** (`EmailMessage`) and
+logs to the console, so notifications are demoable with zero infrastructure.
+**Real delivery is built in**: set `SMTP_HOST` (and optionally `SMTP_PORT`,
+`SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` — see `.env`) and every notification is
+also sent over SMTP by a **dependency-free SMTP client** (`smtp.ts`: EHLO,
+STARTTLS upgrade on 587 / implicit TLS on 465, AUTH PLAIN/LOGIN, dot-stuffed
+DATA — protocol-tested against an in-process mock server). Delivery runs
+detached so a slow relay never holds up a workflow transaction, and each outbox
+card shows the outcome (`LOGGED` / `SENT` / `FAILED` with the error).
+Notifications fire on: an approval/review step activating (to its assignees), a
+contract sent for signature (each signer's unique link), a contract executed or
+rejected (to the owner), and a redline proposed (to the owner). The **Outbox**
+page (staff only) shows everything sent.
 
 ---
 
@@ -261,9 +266,9 @@ only) shows everything sent.
   password-reset flow for production.
 - **E-signature** — the built-in signer is self-contained. To use a third-party
   provider (e.g. DocuSign), implement an alternative behind the signing module.
-- **Email delivery** — notifications are written to the in-app outbox and the
-  console; point `email.ts`'s `deliver` at SMTP or a provider API to send real
-  mail.
+- **Email delivery** — set the `SMTP_*` variables in `.env` and notifications
+  send as real mail (in addition to the outbox). Works with any standard relay
+  (SendGrid, SES SMTP, Postmark, a corporate relay) on 587/STARTTLS or 465/TLS.
 
 ---
 
