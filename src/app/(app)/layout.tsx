@@ -62,12 +62,21 @@ export default async function AppLayout({
               ))}
             </nav>
           </div>
-          <UserMenu
-            me={me}
-            users={users}
-            canImpersonate={canImpersonate}
-            impersonating={impersonating}
-          />
+          <div className="flex items-center gap-3">
+            <form action="/search" method="get" className="hidden lg:block">
+              <input
+                name="q"
+                placeholder="Search…"
+                className="w-44 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm shadow-sm focus:border-brand-500 focus:outline-none"
+              />
+            </form>
+            <UserMenu
+              me={me}
+              users={users}
+              canImpersonate={canImpersonate}
+              impersonating={impersonating}
+            />
+          </div>
         </div>
       </header>
       <main className="mx-auto max-w-6xl px-4 py-8">{children}</main>

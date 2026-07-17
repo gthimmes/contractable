@@ -103,6 +103,8 @@ src/
     diff.ts        Word-level LCS diff for redlines (tracked changes) + tests
     pdf.ts         Dependency-free PDF writer (standard-14 fonts, real wrapping) + tests
     contract-pdf.ts Lays out a contract as a PDF: summary + document + signature certificate
+    search.ts      Cross-entity search (incl. document text) + snippet highlighting + tests
+    smtp.ts        Dependency-free SMTP client (STARTTLS, AUTH, dot-stuffing) + tests
     redline.ts     Propose / accept / reject revisions as versions
     obligations.ts Enforcement: obligations, derived OVERDUE status, upcoming query
     permissions.ts RBAC policy — can()/assertCan(), roles + owner grants
@@ -187,6 +189,15 @@ and records a tamper-evident receipt: the **document content hash** at signing
 time, the signer, timestamp, and IP. Signing is **ordered** — a signer is
 blocked until everyone ahead of them has signed. The final signature completes
 the workflow's signature step and executes the contract.
+
+### Search
+
+The header search box (or **/search**) queries everything at once: contract
+titles, references, descriptions, counterparty names, **the full text of the
+current document**, and templates. Document hits show a highlighted snippet
+around the first match. Matching uses SQL `LIKE` (case-insensitive), so it
+needs no extra infrastructure and ports to Postgres unchanged; the snippet
+extraction is a pure, tested function (`search.ts`).
 
 ### PDF export
 
@@ -289,5 +300,5 @@ insert/edit/delete across contracts, templates, workflows, counterparties,
 obligations, signers, comments, and users.
 
 **Natural next steps:** SSO/OAuth (the credential check is the only swap point;
-sessions + authorization are done), real email delivery, clause libraries and
-conditional template sections, and full-text search.
+sessions + authorization are done), clause libraries and conditional template
+sections, and richer search ranking (FTS5/tsvector).
