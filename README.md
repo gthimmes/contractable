@@ -110,6 +110,7 @@ src/
     permissions.ts RBAC policy — can()/assertCan(), roles + owner grants
     email.ts       Pluggable notification transport → outbox + console
     auth.ts        Login sessions, scrypt password verify, admin impersonation
+    oauth.ts       Google SSO (OIDC auth-code flow, claim validation) + tests
     password.ts    Pure scrypt hash/verify (shared with the seed)
     session.ts     getCurrentUser() from the session (redirects to /login)
     *.test.ts      68 unit tests (workflow decisions, template engine, diff engine)
@@ -230,9 +231,16 @@ Every route under the **`(app)` route group** is protected by its layout calling
 `getCurrentUser()`, which resolves the session or **redirects to `/login`**;
 `/login` and the public `/sign/<token>` page live outside that group. Admins can
 **impersonate** any user (to demo/verify roles) — the real admin id is stashed
-so they can always return, and only an admin can start it. Swapping in SSO/OAuth
-means replacing `auth.ts`'s credential check; the session/authorization layers
-above it don't change.
+so they can always return, and only an admin can start it.
+
+**Google SSO is built in** (`oauth.ts` — the OIDC authorization-code flow in
+two fetches, no dependency): set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`
+in `.env` (redirect URI `{APP_BASE_URL}/auth/google/callback`) and the login
+page offers **Sign in with Google**. The flow is CSRF-protected with a
+state cookie, validates the id_token's issuer/audience/expiry, requires a
+verified email, and maps it to an **existing** user — accounts are never
+auto-created, since roles are assigned by an admin. SSO and password sign-in
+produce the identical server-side session.
 
 ### Role-based access control
 
@@ -271,9 +279,10 @@ page (staff only) shows everything sent.
   instance; the schema is otherwise portable. (SQLite is used here only to keep
   local setup zero-infrastructure.)
 - **Authentication** — real email/password login with server-side sessions is
-  built in (`auth.ts`). For an organization, swap the credential check in
-  `auth.ts` for SSO/OAuth (Google, Okta, SAML) — the session and authorization
-  layers stay the same. Passwords here use scrypt; add rate-limiting and a
+  built in (`auth.ts`), and **Google SSO** works by setting the two
+  `GOOGLE_*` variables in `.env`. For other identity providers (Okta, SAML),
+  mirror `oauth.ts`/the `auth/google` routes — the session and authorization
+  layers stay the same. Passwords use scrypt; add rate-limiting and a
   password-reset flow for production.
 - **E-signature** — the built-in signer is self-contained. To use a third-party
   provider (e.g. DocuSign), implement an alternative behind the signing module.
@@ -299,6 +308,6 @@ outbox**; counterparties, organization, and user admin; and full
 insert/edit/delete across contracts, templates, workflows, counterparties,
 obligations, signers, comments, and users.
 
-**Natural next steps:** SSO/OAuth (the credential check is the only swap point;
-sessions + authorization are done), clause libraries and conditional template
-sections, and richer search ranking (FTS5/tsvector).
+**Natural next steps:** additional identity providers (Okta/SAML — mirror the
+Google flow), password reset + login rate-limiting, clause libraries and
+conditional template sections, and richer search ranking (FTS5/tsvector).
