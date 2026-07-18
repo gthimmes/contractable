@@ -13,7 +13,8 @@ export type EmailKind =
   | "SIGNATURE_REQUEST"
   | "CONTRACT_EXECUTED"
   | "CONTRACT_REJECTED"
-  | "REDLINE_PROPOSED";
+  | "REDLINE_PROPOSED"
+  | "PASSWORD_RESET";
 
 export interface EmailInput {
   toEmail: string;

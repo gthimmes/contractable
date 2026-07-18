@@ -5,6 +5,7 @@ import { loginAction } from "@/app/actions";
 
 const ERROR_MESSAGES: Record<string, string> = {
   "1": "Invalid email or password.",
+  rate: "Too many attempts for this account. Wait a few minutes and try again.",
   sso: "Google sign-in failed. Please try again.",
   sso_no_account: "No Contractable account matches that Google account. Ask an admin to add you.",
   sso_unconfigured: "Google sign-in is not configured on this server.",
@@ -13,9 +14,9 @@ const ERROR_MESSAGES: Record<string, string> = {
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; reset?: string }>;
 }) {
-  const { error } = await searchParams;
+  const { error, reset } = await searchParams;
   if (await getSessionUser()) redirect("/");
   const ssoEnabled = googleConfigFromEnv() !== null;
 
@@ -37,6 +38,11 @@ export default async function LoginPage({
               {ERROR_MESSAGES[error] ?? "Sign-in failed. Please try again."}
             </p>
           )}
+          {reset && (
+            <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+              Password updated — sign in with your new password.
+            </p>
+          )}
 
           <div>
             <label className="label">Email</label>
@@ -50,7 +56,12 @@ export default async function LoginPage({
             />
           </div>
           <div>
-            <label className="label">Password</label>
+            <div className="flex items-center justify-between">
+              <label className="label">Password</label>
+              <a href="/forgot" className="text-xs font-medium text-brand-600 hover:underline">
+                Forgot password?
+              </a>
+            </div>
             <input
               name="password"
               type="password"

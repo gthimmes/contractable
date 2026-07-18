@@ -10,6 +10,7 @@ const KIND_LABELS: Record<string, string> = {
   CONTRACT_EXECUTED: "Contract executed",
   CONTRACT_REJECTED: "Contract rejected",
   REDLINE_PROPOSED: "Redline proposed",
+  PASSWORD_RESET: "Password reset",
 };
 
 const KIND_COLORS: Record<string, string> = {

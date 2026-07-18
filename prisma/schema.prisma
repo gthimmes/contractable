@@ -70,6 +70,7 @@ model User {
   comments         Comment[]
   auditEvents      AuditEvent[]
   sessions         Session[]
+  resetTokens      PasswordResetToken[]
 }
 
 // Server-side login sessions. A random token is stored in an httpOnly cookie;
@@ -81,6 +82,18 @@ model Session {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   expiresAt DateTime
   createdAt DateTime @default(now())
+}
+
+// Single-use password set/reset tokens, emailed to the user. Only the sha256
+// of the token is stored, so a database leak doesn't expose live reset links.
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  tokenHash String    @unique
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
 }
 
 // ---------------------------------------------------------------------------

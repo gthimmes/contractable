@@ -111,6 +111,8 @@ src/
     email.ts       Pluggable notification transport → outbox + console
     auth.ts        Login sessions, scrypt password verify, admin impersonation
     oauth.ts       Google SSO (OIDC auth-code flow, claim validation) + tests
+    reset.ts       Password set/reset via single-use hashed email tokens
+    ratelimit.ts   Sliding-window rate limiter for login/reset + tests
     password.ts    Pure scrypt hash/verify (shared with the seed)
     session.ts     getCurrentUser() from the session (redirects to /login)
     *.test.ts      68 unit tests (workflow decisions, template engine, diff engine)
@@ -242,6 +244,15 @@ verified email, and maps it to an **existing** user — accounts are never
 auto-created, since roles are assigned by an admin. SSO and password sign-in
 produce the identical server-side session.
 
+**Password reset** (`reset.ts`) works through single-use emailed links
+(`/forgot` → `/reset/<token>`, 1-hour TTL): only the token's sha256 is stored,
+completing a reset revokes every existing session, and unknown emails get the
+same response as known ones (no account enumeration). It doubles as the
+**invite flow** — an admin creates a user without a password and the user sets
+one via "Forgot password". Login and reset requests are **rate-limited**
+(`ratelimit.ts`, sliding window: 10 login attempts / 15 min, 3 reset emails /
+hour per account).
+
 ### Role-based access control
 
 `permissions.ts` is a single pure policy module. `can(actor, action, resource?)`
@@ -282,8 +293,9 @@ page (staff only) shows everything sent.
   built in (`auth.ts`), and **Google SSO** works by setting the two
   `GOOGLE_*` variables in `.env`. For other identity providers (Okta, SAML),
   mirror `oauth.ts`/the `auth/google` routes — the session and authorization
-  layers stay the same. Passwords use scrypt; add rate-limiting and a
-  password-reset flow for production.
+  layers stay the same. Passwords use scrypt; rate-limiting and password reset
+  are built in (the limiter is in-memory — back it with Redis if you run
+  multiple nodes).
 - **E-signature** — the built-in signer is self-contained. To use a third-party
   provider (e.g. DocuSign), implement an alternative behind the signing module.
 - **Email delivery** — set the `SMTP_*` variables in `.env` and notifications
@@ -309,5 +321,5 @@ insert/edit/delete across contracts, templates, workflows, counterparties,
 obligations, signers, comments, and users.
 
 **Natural next steps:** additional identity providers (Okta/SAML — mirror the
-Google flow), password reset + login rate-limiting, clause libraries and
-conditional template sections, and richer search ranking (FTS5/tsvector).
+Google flow), clause libraries and conditional template sections, and richer
+search ranking (FTS5/tsvector).

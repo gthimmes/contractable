@@ -11,6 +11,8 @@ import {
   getImpersonatorId,
   setImpersonator,
 } from "@/lib/auth";
+import { requestPasswordReset, resetPassword } from "@/lib/reset";
+import { loginLimiter, resetRequestLimiter } from "@/lib/ratelimit";
 import {
   createContract,
   addVersion,
@@ -86,11 +88,38 @@ async function guardObligation(action: Action, obligationId: string) {
 // --- Authentication --------------------------------------------------------
 
 export async function loginAction(formData: FormData) {
-  const email = str(formData.get("email"));
+  const email = str(formData.get("email")).toLowerCase();
   const password = str(formData.get("password"));
+  // Rate-limit per account before touching credentials, so guessing is
+  // throttled regardless of whether the account exists.
+  if (!loginLimiter.attempt(`login:${email}`).allowed) {
+    redirect("/login?error=rate");
+  }
   const ok = await login(email, password);
   if (!ok) redirect("/login?error=1");
+  loginLimiter.reset(`login:${email}`);
   redirect("/");
+}
+
+export async function requestPasswordResetAction(formData: FormData) {
+  const email = str(formData.get("email")).toLowerCase();
+  // Always land on the same confirmation — whether the account exists, or the
+  // request was throttled — so the endpoint can't enumerate users.
+  if (email && resetRequestLimiter.attempt(`reset:${email}`).allowed) {
+    await requestPasswordReset(email);
+  }
+  redirect("/forgot?sent=1");
+}
+
+export async function resetPasswordAction(formData: FormData) {
+  const token = str(formData.get("token"));
+  const password = str(formData.get("password"));
+  const confirm = str(formData.get("confirm"));
+  if (password.length < 8) redirect(`/reset/${token}?error=short`);
+  if (password !== confirm) redirect(`/reset/${token}?error=mismatch`);
+  const ok = await resetPassword(token, password);
+  if (!ok) redirect(`/reset/${token}?error=invalid`);
+  redirect("/login?reset=1");
 }
 
 export async function logoutAction() {
