@@ -39,7 +39,7 @@ executed volume and value by month, breakdown by category and counterparty.
 Pure, tested computations over existing data; no new infrastructure.
 *Why: managers run renewals and workload from this.*
 
-## 5. Outbound webhooks — ⬜ planned
+## 5. Outbound webhooks — ✅ shipped
 
 Admin-managed webhook endpoints (URL + secret + event filter). Key lifecycle
 events (executed, rejected, workflow started/completed, signature signed,

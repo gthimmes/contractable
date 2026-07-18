@@ -246,6 +246,20 @@ result with `Content-Disposition: attachment`.
 Every state change appends to an **append-only, hash-chained** log: each
 event's hash covers the previous event's hash, so any retroactive edit breaks
 the chain from that point forward. The Audit page runs `verifyAuditChain` live.
+Deleting a contract **never deletes its audit events** — they are detached and
+a `CONTRACT_DELETED` record is appended, so the chain stays verifiable and the
+removal itself is audited.
+
+### Webhooks
+
+**Settings → Webhooks** (admin): register endpoints that receive an
+HMAC-SHA256-signed JSON POST (`X-Contractable-Signature`) for lifecycle
+events — contract created/approved/executed/rejected/amended/deleted, workflow
+started, signatures requested/signed/declined, redlines proposed/resolved,
+documents generated, obligations added. Filter per endpoint with exact names,
+prefixes (`contract.*`), or `*`. Dispatch piggybacks on the audit log (one
+call site), runs detached so it can never slow or fail the operation, and
+every attempt is logged with status/response for debugging.
 
 ### Authentication & sessions
 

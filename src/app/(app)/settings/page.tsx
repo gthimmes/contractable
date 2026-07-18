@@ -23,7 +23,10 @@ export default async function SettingsPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
         <p className="text-sm text-gray-500">
-          Organization profile and user accounts.
+          Organization profile and user accounts. Also:{" "}
+          <a href="/settings/webhooks" className="text-brand-600 hover:underline">
+            outbound webhooks →
+          </a>
         </p>
       </div>
 

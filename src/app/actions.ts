@@ -350,8 +350,8 @@ export async function updateContractAction(formData: FormData) {
 
 export async function deleteContractAction(formData: FormData) {
   const contractId = str(formData.get("contractId"));
-  await guardContract("contract:delete", contractId);
-  await deleteContract(contractId);
+  const me = await guardContract("contract:delete", contractId);
+  await deleteContract(contractId, { id: me.id, name: me.name });
   revalidatePath("/contracts");
   redirect("/contracts");
 }
@@ -571,6 +571,48 @@ export async function deleteTemplateAction(formData: FormData) {
   });
   await prisma.contractTemplate.delete({ where: { id } });
   revalidatePath("/templates");
+}
+
+// ===========================================================================
+// Webhooks — admin-managed outbound endpoints
+// ===========================================================================
+
+export async function saveWebhookAction(formData: FormData) {
+  await guard("org:manage");
+  const id = optStr(formData.get("id"));
+  const data = {
+    url: str(formData.get("url")),
+    events: optStr(formData.get("events")) ?? "*",
+  };
+  if (!/^https?:\/\//.test(data.url)) throw new Error("Webhook URL must be http(s).");
+  if (id) {
+    await prisma.webhookEndpoint.update({ where: { id }, data });
+  } else {
+    // Secret is generated server-side and shown once on the page.
+    const { randomBytes } = await import("crypto");
+    await prisma.webhookEndpoint.create({
+      data: { ...data, secret: `whsec_${randomBytes(24).toString("hex")}` },
+    });
+  }
+  revalidatePath("/settings/webhooks");
+}
+
+export async function toggleWebhookAction(formData: FormData) {
+  await guard("org:manage");
+  const id = str(formData.get("id"));
+  const endpoint = await prisma.webhookEndpoint.findUniqueOrThrow({ where: { id } });
+  await prisma.webhookEndpoint.update({
+    where: { id },
+    data: { active: !endpoint.active },
+  });
+  revalidatePath("/settings/webhooks");
+}
+
+export async function deleteWebhookAction(formData: FormData) {
+  await guard("org:manage");
+  const id = str(formData.get("id"));
+  await prisma.webhookEndpoint.delete({ where: { id } });
+  revalidatePath("/settings/webhooks");
 }
 
 // ===========================================================================

@@ -286,10 +286,28 @@ export async function updateContract(
  * the contract↔current-version pointer make blanket cascades order-sensitive on
  * SQLite). Guarded to sensible states in the action layer.
  */
-export async function deleteContract(contractId: string) {
+export async function deleteContract(
+  contractId: string,
+  actor?: { id: string; name: string }
+) {
   await prisma.$transaction(async (tx) => {
+    const doomed = await tx.contract.findUniqueOrThrow({ where: { id: contractId } });
     await tx.emailMessage.deleteMany({ where: { contractId } });
-    await tx.auditEvent.deleteMany({ where: { contractId } });
+    // The audit log is append-only: deleting rows would break the hash chain
+    // (each event's hash covers its predecessor). Detach the contract's events
+    // instead, and append a deletion record so the removal itself is audited.
+    await tx.auditEvent.updateMany({
+      where: { contractId },
+      data: { contractId: null },
+    });
+    await recordAudit(tx, {
+      entityType: "CONTRACT",
+      entityId: contractId,
+      action: "CONTRACT_DELETED",
+      summary: `Deleted contract ${doomed.reference} — "${doomed.title}"`,
+      actorId: actor?.id ?? null,
+      actorLabel: actor?.name ?? null,
+    });
     await tx.signature.deleteMany({ where: { contractId } });
     const instances = await tx.workflowInstance.findMany({
       where: { contractId },

@@ -14,6 +14,8 @@ async function reset() {
   await prisma.passwordResetToken.deleteMany();
   await prisma.reminderLog.deleteMany();
   await prisma.systemState.deleteMany();
+  await prisma.webhookDelivery.deleteMany();
+  await prisma.webhookEndpoint.deleteMany();
   await prisma.emailMessage.deleteMany();
   await prisma.auditEvent.deleteMany();
   await prisma.signature.deleteMany();

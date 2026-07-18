@@ -1,5 +1,6 @@
 import { createHash } from "crypto";
 import type { Prisma, PrismaClient } from "@prisma/client";
+import { AUDIT_TO_EVENT, dispatchWebhooks } from "./webhooks";
 
 // A Prisma client OR an interactive-transaction client — audit writes must be
 // able to participate in the same transaction as the change they record.
@@ -49,7 +50,7 @@ export async function recordAudit(db: Db, input: AuditInput) {
     ].join("|")
   );
 
-  return db.auditEvent.create({
+  const event = await db.auditEvent.create({
     data: {
       contractId: input.contractId ?? null,
       entityType: input.entityType,
@@ -64,6 +65,24 @@ export async function recordAudit(db: Db, input: AuditInput) {
       createdAt,
     },
   });
+
+  // Outbound webhooks piggyback on the audit log — one call site for every
+  // lifecycle event. Dispatch is detached and delayed past the enclosing
+  // transaction's commit; it can never fail the audited operation.
+  const webhookEvent = AUDIT_TO_EVENT[input.action];
+  if (webhookEvent) {
+    dispatchWebhooks({
+      event: webhookEvent,
+      timestamp: createdAt.toISOString(),
+      contractId: input.contractId ?? null,
+      entityType: input.entityType,
+      entityId: input.entityId,
+      summary: input.summary,
+      actor: input.actorLabel ?? null,
+    });
+  }
+
+  return event;
 }
 
 /**

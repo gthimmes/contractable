@@ -371,6 +371,31 @@ model AuditEvent {
 // swap in real SMTP/API delivery for production.
 // ---------------------------------------------------------------------------
 
+// Outbound webhooks: admin-managed endpoints that receive HMAC-signed JSON
+// POSTs for lifecycle events. `events` is "*" or a comma-separated filter.
+model WebhookEndpoint {
+  id        String   @id @default(cuid())
+  url       String
+  secret    String
+  events    String   @default("*")
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  deliveries WebhookDelivery[]
+}
+
+model WebhookDelivery {
+  id           String          @id @default(cuid())
+  endpointId   String
+  endpoint     WebhookEndpoint @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+  event        String
+  payload      String
+  status       String // SENT | FAILED
+  responseCode Int?
+  error        String?
+  createdAt    DateTime        @default(now())
+}
+
 // Small key/value store for system bookkeeping (e.g. when the reminder sweep
 // last ran) — avoids a config table per concern.
 model SystemState {
