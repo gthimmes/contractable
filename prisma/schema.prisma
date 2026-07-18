@@ -365,6 +365,26 @@ model AuditEvent {
 // swap in real SMTP/API delivery for production.
 // ---------------------------------------------------------------------------
 
+// Small key/value store for system bookkeeping (e.g. when the reminder sweep
+// last ran) — avoids a config table per concern.
+model SystemState {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+// De-duplication log for reminder emails: one row per (entity, kind) send, so
+// the sweep can skip anything reminded within the cooldown window.
+model ReminderLog {
+  id         String   @id @default(cuid())
+  entityType String // OBLIGATION | CONTRACT
+  entityId   String
+  kind       String // UPCOMING | OVERDUE | EXPIRING
+  sentAt     DateTime @default(now())
+
+  @@index([entityType, entityId, kind])
+}
+
 model EmailMessage {
   id         String   @id @default(cuid())
   toEmail    String

@@ -276,6 +276,18 @@ even if their role alone wouldn't. Try it: as an admin, impersonate **Vic
 Viewer** — every mutation control disappears, admin-only nav (Settings, Outbox)
 is hidden, and direct navigation to a guarded page redirects.
 
+### Reminders (renewals & obligations)
+
+A periodic **reminder sweep** (`reminders.ts`) emails obligation owners about
+items due within 7 days or overdue, and contract owners about executed
+contracts expiring within 30 days. A `ReminderLog` row per (entity, kind) send
+enforces a 7-day cooldown, so reminders repeat weekly instead of spamming.
+Two triggers, no cron infrastructure: app traffic runs the sweep lazily at
+most every 12 hours (detached — page loads never wait), and
+**`GET /api/cron/reminders`** runs it on demand for real schedulers (set
+`CRON_SECRET` to require a Bearer token). Reminder emails appear in the outbox
+like everything else.
+
 ### Email notifications
 
 `email.ts` persists every message to an in-app **outbox** (`EmailMessage`) and

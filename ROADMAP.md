@@ -8,7 +8,7 @@ This roadmap is the next arc: **make the platform proactive, complete the
 lifecycle loop, and open it up to the outside world.** Ordered by value;
 each item ships independently.
 
-## 1. Renewal & obligation reminders — ⬜ planned
+## 1. Renewal & obligation reminders — ✅ shipped
 
 Enforcement today is passive: obligations show as overdue only when someone
 looks. Add a reminder sweep that emails obligation owners about upcoming and

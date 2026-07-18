@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getCurrentUser, getAllUsers } from "@/lib/session";
 import { getImpersonatorId } from "@/lib/auth";
+import { maybeRunSweep } from "@/lib/reminders";
 import { UserMenu } from "@/components/UserMenu";
 import { ROLE_LABELS, type Role } from "@/lib/constants";
 
@@ -29,6 +30,10 @@ export default async function AppLayout({
     getAllUsers(),
     getImpersonatorId(),
   ]);
+  // Lazy scheduler: app traffic triggers the reminder sweep at most every 12h
+  // (detached — never blocks a page load). Real deployments can also hit
+  // /api/cron/reminders from a scheduler.
+  void maybeRunSweep().catch(() => {});
   const impersonating = !!impersonatorId;
   const canImpersonate = me.role === "ADMIN" || impersonating;
 

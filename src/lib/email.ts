@@ -14,7 +14,8 @@ export type EmailKind =
   | "CONTRACT_EXECUTED"
   | "CONTRACT_REJECTED"
   | "REDLINE_PROPOSED"
-  | "PASSWORD_RESET";
+  | "PASSWORD_RESET"
+  | "REMINDER";
 
 export interface EmailInput {
   toEmail: string;
