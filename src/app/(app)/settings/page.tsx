@@ -26,6 +26,10 @@ export default async function SettingsPage() {
           Organization profile and user accounts. Also:{" "}
           <a href="/settings/webhooks" className="text-brand-600 hover:underline">
             outbound webhooks →
+          </a>{" "}
+          ·{" "}
+          <a href="/settings/api-keys" className="text-brand-600 hover:underline">
+            API keys →
           </a>
         </p>
       </div>

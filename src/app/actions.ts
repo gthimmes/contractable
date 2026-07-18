@@ -14,6 +14,8 @@ import {
 import { requestPasswordReset, resetPassword } from "@/lib/reset";
 import { loginLimiter, resetRequestLimiter } from "@/lib/ratelimit";
 import { importCounterparties } from "@/lib/export";
+import { createApiKey } from "@/lib/api";
+import { cookies } from "next/headers";
 import {
   createContract,
   createAmendment,
@@ -605,6 +607,44 @@ export async function importCounterpartiesAction(formData: FormData) {
   redirect(
     `/counterparties?import=done&created=${result.created}&updated=${result.updated}&skipped=${result.skipped}`
   );
+}
+
+// ===========================================================================
+// API keys — admin-managed bearer keys for /api/v1
+// ===========================================================================
+
+export async function createApiKeyAction(formData: FormData) {
+  await guard("org:manage");
+  const name = str(formData.get("name"));
+  const scope = str(formData.get("scope")) === "WRITE" ? "WRITE" : "READ";
+  if (!name) throw new Error("Key name is required.");
+  const { plaintext } = await createApiKey(name, scope);
+  // One-time reveal: flash the plaintext via an httpOnly cookie the page
+  // reads and clears on the next render — never in a URL.
+  const store = await cookies();
+  store.set("contractable_new_api_key", plaintext, {
+    httpOnly: true,
+    sameSite: "lax",
+    path: "/",
+    maxAge: 60,
+  });
+  revalidatePath("/settings/api-keys");
+  redirect("/settings/api-keys");
+}
+
+export async function toggleApiKeyAction(formData: FormData) {
+  await guard("org:manage");
+  const id = str(formData.get("id"));
+  const key = await prisma.apiKey.findUniqueOrThrow({ where: { id } });
+  await prisma.apiKey.update({ where: { id }, data: { active: !key.active } });
+  revalidatePath("/settings/api-keys");
+}
+
+export async function deleteApiKeyAction(formData: FormData) {
+  await guard("org:manage");
+  const id = str(formData.get("id"));
+  await prisma.apiKey.delete({ where: { id } });
+  revalidatePath("/settings/api-keys");
 }
 
 // ===========================================================================

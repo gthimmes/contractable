@@ -250,6 +250,25 @@ Deleting a contract **never deletes its audit events** — they are detached and
 a `CONTRACT_DELETED` record is appended, so the chain stays verifiable and the
 removal itself is audited.
 
+### REST API
+
+**Settings → API keys** (admin) issues bearer keys for the versioned REST
+surface — keys are stored **hashed**, shown once at creation, scoped
+**read-only** or **read + write**, and revocable:
+
+```
+GET  /api/v1/contracts?status=EXECUTED     list (filter, limit)
+GET  /api/v1/contracts/CTR-0005            one contract + versions, signatures, obligations
+POST /api/v1/contracts                     create a draft (WRITE scope)
+GET  /api/v1/counterparties                list  ·  POST creates (WRITE)
+GET  /api/v1/obligations?status=OPEN       list obligations
+Authorization: Bearer ck_…
+```
+
+API-created contracts are attributed in the audit log with the key's name.
+Together with webhooks this closes the integration loop: events push out,
+data reads/writes come in.
+
 ### Webhooks
 
 **Settings → Webhooks** (admin): register endpoints that receive an

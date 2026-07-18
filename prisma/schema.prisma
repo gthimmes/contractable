@@ -372,6 +372,20 @@ model AuditEvent {
 // swap in real SMTP/API delivery for production.
 // ---------------------------------------------------------------------------
 
+// API keys for the REST surface (/api/v1). Only the sha256 of the key is
+// stored; the plaintext is shown once at creation. Scope is READ or WRITE
+// (WRITE implies READ).
+model ApiKey {
+  id         String    @id @default(cuid())
+  name       String
+  keyHash    String    @unique
+  prefix     String // first 12 chars, for display ("ck_live_ab12…")
+  scope      String    @default("READ") // READ | WRITE
+  active     Boolean   @default(true)
+  lastUsedAt DateTime?
+  createdAt  DateTime  @default(now())
+}
+
 // In-app notifications: created alongside outgoing email for users that exist
 // in the system, surfaced by the header bell with read/unread state.
 model Notification {

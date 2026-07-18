@@ -69,11 +69,30 @@ waiting on you, signatures completed, redlines proposed. Read/unread state.
 *Why: email is where notifications go to die; the app should surface your
 queue itself.*
 
+---
+
+# Arc 2 — open the platform, harden signing
+
+## 9. REST API with API keys — ✅ shipped
+
+Admin-managed API keys (hashed at rest, scoped read-only or read-write) and a
+versioned `/api/v1` surface: list/get contracts (with versions and status),
+counterparties, and obligations; create contracts and counterparties.
+Webhooks cover outbound; this is the inbound half of the integration story.
+
+## 10. Signature reminders & signing-link expiry — ⬜ planned
+
+Signing links currently live forever and silent signers stall deals. Signature
+requests gain an expiry; the reminder sweep nudges pending signers (with the
+same cooldown de-duplication), and expired links show a clear re-issue path.
+
+## 11. Attachments — ⬜ planned
+
+Upload supporting files to a contract (local-disk store, size/type-capped),
+listed on the contract page with download links and audit entries.
+
 ## Later / not yet scheduled
 
 - Full-text search ranking via SQLite FTS5 / Postgres tsvector
-- Attachments on contracts (local disk store)
 - Custom-field definitions per contract category
 - Multi-organization tenancy
-- REST API with API keys (webhooks cover outbound; this is inbound)
-- Signature reminders and signing-link expiry
