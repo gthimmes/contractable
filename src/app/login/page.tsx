@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/auth";
-import { googleConfigFromEnv } from "@/lib/oauth";
+import { googleConfigFromEnv, oidcEnvConfigured } from "@/lib/oauth";
 import { loginAction } from "@/app/actions";
 
 const ERROR_MESSAGES: Record<string, string> = {
@@ -19,6 +19,7 @@ export default async function LoginPage({
   const { error, reset } = await searchParams;
   if (await getSessionUser()) redirect("/");
   const ssoEnabled = googleConfigFromEnv() !== null;
+  const oidc = oidcEnvConfigured();
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
@@ -75,13 +76,25 @@ export default async function LoginPage({
             Sign in
           </button>
 
-          {ssoEnabled && (
+          {(ssoEnabled || oidc) && (
             <>
               <div className="flex items-center gap-3 text-xs text-gray-400">
                 <span className="h-px flex-1 bg-gray-200" />
                 or
                 <span className="h-px flex-1 bg-gray-200" />
               </div>
+              {oidc && (
+                <a
+                  href="/auth/oidc"
+                  className="flex w-full items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  <span className="grid h-4 w-4 place-items-center rounded-full bg-gray-800 text-[10px] font-bold text-white">
+                    →
+                  </span>
+                  Sign in with {oidc.name}
+                </a>
+              )}
+              {ssoEnabled && (
               <a
                 href="/auth/google"
                 className="flex w-full items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
@@ -95,6 +108,7 @@ export default async function LoginPage({
                 </svg>
                 Sign in with Google
               </a>
+              )}
             </>
           )}
         </form>

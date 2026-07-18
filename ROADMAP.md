@@ -55,7 +55,7 @@ per contract (metadata, versions, signatures, audit trail), and CSV import of
 counterparties. Dependency-free CSV codec, tested.
 *Why: nobody adopts a system their data can't leave.*
 
-## 7. Generic OIDC SSO (Okta, Azure AD, Auth0) — ⬜ planned
+## 7. Generic OIDC SSO (Okta, Azure AD, Auth0) — ✅ shipped
 
 Generalize the Google flow using OIDC discovery (`/.well-known/openid-
 configuration`): set `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`,

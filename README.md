@@ -272,14 +272,22 @@ Every route under the **`(app)` route group** is protected by its layout calling
 **impersonate** any user (to demo/verify roles) — the real admin id is stashed
 so they can always return, and only an admin can start it.
 
-**Google SSO is built in** (`oauth.ts` — the OIDC authorization-code flow in
-two fetches, no dependency): set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`
-in `.env` (redirect URI `{APP_BASE_URL}/auth/google/callback`) and the login
-page offers **Sign in with Google**. The flow is CSRF-protected with a
-state cookie, validates the id_token's issuer/audience/expiry, requires a
-verified email, and maps it to an **existing** user — accounts are never
-auto-created, since roles are assigned by an admin. SSO and password sign-in
-produce the identical server-side session.
+**SSO is built in** (`oauth.ts` — the OIDC authorization-code flow in two
+fetches, no dependency) with two providers sharing one flow:
+
+- **Google** — set `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` (redirect URI
+  `{APP_BASE_URL}/auth/google/callback`).
+- **Any OIDC identity provider** (Okta, Azure AD/Entra, Auth0, Keycloak…) —
+  set `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, and a display
+  `OIDC_NAME`; endpoints resolve automatically from the issuer's
+  `/.well-known/openid-configuration` (redirect URI
+  `{APP_BASE_URL}/auth/oidc/callback`).
+
+Both flows are CSRF-protected with a state cookie, validate the id_token's
+issuer/audience/expiry (the discovery document's issuer must match the
+configured one), require a verified email, and map it to an **existing** user —
+accounts are never auto-created, since roles are assigned by an admin. SSO and
+password sign-in produce the identical server-side session.
 
 **Password reset** (`reset.ts`) works through single-use emailed links
 (`/forgot` → `/reset/<token>`, 1-hour TTL): only the token's sha256 is stored,
