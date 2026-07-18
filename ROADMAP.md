@@ -25,7 +25,7 @@ which then travels the normal review → approval → signature path. Parent and
 amendment link to each other.
 *Why: closes the last gap in the lifecycle loop.*
 
-## 3. Version compare — ⬜ planned
+## 3. Version compare — ✅ shipped
 
 The redline view already diffs proposed vs. current. Generalize it: pick any
 two versions of a contract and see the tracked-changes diff between them.

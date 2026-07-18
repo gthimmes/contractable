@@ -178,7 +178,9 @@ deletions struck red). A reviewer **proposes a redline**, which creates a
 `PROPOSED` version alongside the current text (linked by `basedOn`). An owner
 **accepts** it — it becomes the current version and the prior one is
 `SUPERSEDED` — or **rejects** it. This turns review into real negotiation with a
-full, auditable revision history.
+full, auditable revision history. The same diff powers **Compare versions** on
+the contract page: pick any two versions and see the tracked changes between
+them.
 
 ### The workflow engine
 

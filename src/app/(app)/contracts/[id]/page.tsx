@@ -19,6 +19,7 @@ import { ConfirmSubmit } from "@/components/ConfirmSubmit";
 import { GenerateDocument } from "@/components/GenerateDocument";
 import { RedlineEditor } from "@/components/RedlineEditor";
 import { DiffView } from "@/components/DiffView";
+import { CompareVersions } from "@/components/CompareVersions";
 import {
   createAmendmentAction,
   decideAction,
@@ -478,6 +479,25 @@ export default async function ContractDetailPage({
             <pre className="max-h-96 overflow-auto whitespace-pre-wrap rounded-lg bg-gray-50 p-4 text-xs leading-relaxed text-gray-700">
               {currentBody}
             </pre>
+
+            {contract.versions.length >= 2 && (
+              <details className="mt-3">
+                <summary className="cursor-pointer text-sm font-medium text-brand-600">
+                  Compare versions
+                </summary>
+                <div className="mt-3">
+                  <CompareVersions
+                    versions={contract.versions.map((v) => ({
+                      id: v.id,
+                      versionNumber: v.versionNumber,
+                      body: v.body,
+                      status: v.status,
+                      origin: v.origin,
+                    }))}
+                  />
+                </div>
+              </details>
+            )}
 
             <details className="mt-3">
               <summary className="cursor-pointer text-sm font-medium text-brand-600">
