@@ -48,7 +48,7 @@ deliveries are logged with status for debugging.
 *Why: the cheapest integration surface — Slack, Zapier, internal systems —
 without building an API client story.*
 
-## 6. Data in / data out — ⬜ planned
+## 6. Data in / data out — ✅ shipped
 
 CSV export of the contract list (current filters), a full JSON evidence bundle
 per contract (metadata, versions, signatures, audit trail), and CSV import of

@@ -13,6 +13,7 @@ import {
 } from "@/lib/auth";
 import { requestPasswordReset, resetPassword } from "@/lib/reset";
 import { loginLimiter, resetRequestLimiter } from "@/lib/ratelimit";
+import { importCounterparties } from "@/lib/export";
 import {
   createContract,
   createAmendment,
@@ -571,6 +572,25 @@ export async function deleteTemplateAction(formData: FormData) {
   });
   await prisma.contractTemplate.delete({ where: { id } });
   revalidatePath("/templates");
+}
+
+// ===========================================================================
+// Import
+// ===========================================================================
+
+export async function importCounterpartiesAction(formData: FormData) {
+  const me = await guard("counterparty:manage");
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) {
+    redirect("/counterparties?import=empty");
+  }
+  if (file.size > 1_000_000) redirect("/counterparties?import=toolarge");
+  const text = await file.text();
+  const result = await importCounterparties(text, { id: me.id, name: me.name });
+  revalidatePath("/counterparties");
+  redirect(
+    `/counterparties?import=done&created=${result.created}&updated=${result.updated}&skipped=${result.skipped}`
+  );
 }
 
 // ===========================================================================

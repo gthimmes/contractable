@@ -4,9 +4,14 @@ import { getCurrentUser } from "@/lib/session";
 import { can } from "@/lib/permissions";
 import { EmptyState } from "@/components/ui";
 import { ConfirmSubmit } from "@/components/ConfirmSubmit";
-import { deleteCounterpartyAction } from "@/app/actions";
+import { deleteCounterpartyAction, importCounterpartiesAction } from "@/app/actions";
 
-export default async function CounterpartiesPage() {
+export default async function CounterpartiesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ import?: string; created?: string; updated?: string; skipped?: string }>;
+}) {
+  const sp = await searchParams;
   const counterparties = await prisma.counterparty.findMany({
     orderBy: { name: "asc" },
     include: { _count: { select: { contracts: true } } },
@@ -26,6 +31,39 @@ export default async function CounterpartiesPage() {
           </Link>
         )}
       </div>
+
+      {sp.import === "done" && (
+        <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+          Import complete: {sp.created ?? 0} created, {sp.updated ?? 0} updated,{" "}
+          {sp.skipped ?? 0} skipped.
+        </p>
+      )}
+      {(sp.import === "empty" || sp.import === "toolarge") && (
+        <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+          {sp.import === "empty" ? "Pick a CSV file to import." : "File too large (max 1 MB)."}
+        </p>
+      )}
+
+      {canManage && (
+        <details className="card p-4">
+          <summary className="cursor-pointer text-sm font-medium text-brand-600">
+            Import from CSV
+          </summary>
+          <form
+            action={importCounterpartiesAction}
+            className="mt-3 flex flex-wrap items-center gap-3"
+          >
+            <input type="file" name="file" accept=".csv,text/csv" required className="text-sm" />
+            <button type="submit" className="btn-secondary">
+              Import
+            </button>
+            <span className="text-xs text-gray-400">
+              Header row required. Columns: name (required), legal_name, address,
+              contact_name, contact_email, jurisdiction, notes. Existing names are updated.
+            </span>
+          </form>
+        </details>
+      )}
 
       {counterparties.length === 0 ? (
         <EmptyState>

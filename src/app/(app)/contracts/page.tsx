@@ -40,11 +40,16 @@ export default async function ContractsPage({
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold tracking-tight">Contracts</h1>
-        {can(meActor, "contract:create") && (
-          <Link href="/contracts/new" className="btn-primary">
-            + New Contract
-          </Link>
-        )}
+        <div className="flex items-center gap-2">
+          <a href="/contracts/export.csv" className="btn-secondary" download>
+            Export CSV
+          </a>
+          {can(meActor, "contract:create") && (
+            <Link href="/contracts/new" className="btn-primary">
+              + New Contract
+            </Link>
+          )}
+        </div>
       </div>
 
       {/* Status filter */}

@@ -197,6 +197,14 @@ export default async function ContractDetailPage({
                 Download PDF
               </a>
             )}
+            <a
+              href={`/contracts/${contract.id}/export.json`}
+              className="btn-secondary"
+              title="Full evidence bundle: versions, hashes, signatures, audit trail"
+              download
+            >
+              Export JSON
+            </a>
             {perm.edit && (
               <Link href={`/contracts/${contract.id}/edit`} className="btn-secondary">
                 Edit

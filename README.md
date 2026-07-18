@@ -302,6 +302,17 @@ even if their role alone wouldn't. Try it: as an admin, impersonate **Vic
 Viewer** — every mutation control disappears, admin-only nav (Settings, Outbox)
 is hidden, and direct navigation to a guarded page redirects.
 
+### Import & export
+
+Data leaves cleanly: **Export CSV** on the contracts list downloads the full
+register, and **Export JSON** on any contract downloads a complete **evidence
+bundle** — metadata, every version with its content hash, signature receipts
+(signer, timestamp, IP, document hash), obligations, and the audit trail.
+Data comes in too: **Import from CSV** on the counterparties page upserts by
+name (header row: `name, legal_name, address, contact_name, contact_email,
+jurisdiction, notes`). The CSV codec (`csv.ts`) is dependency-free and
+round-trip tested.
+
 ### Insights
 
 **/insights** (staff only) computes portfolio analytics from existing data:
