@@ -15,6 +15,7 @@ import { requestPasswordReset, resetPassword } from "@/lib/reset";
 import { loginLimiter, resetRequestLimiter } from "@/lib/ratelimit";
 import {
   createContract,
+  createAmendment,
   addVersion,
   updateContract,
   deleteContract,
@@ -353,6 +354,14 @@ export async function deleteContractAction(formData: FormData) {
   await deleteContract(contractId);
   revalidatePath("/contracts");
   redirect("/contracts");
+}
+
+export async function createAmendmentAction(formData: FormData) {
+  const me = await guard("contract:create");
+  const parentId = str(formData.get("contractId"));
+  const amendment = await createAmendment(parentId, { id: me.id, name: me.name });
+  revalidatePath("/contracts");
+  redirect(`/contracts/${amendment.id}`);
 }
 
 // ===========================================================================

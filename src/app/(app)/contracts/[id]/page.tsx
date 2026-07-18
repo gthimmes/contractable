@@ -20,6 +20,7 @@ import { GenerateDocument } from "@/components/GenerateDocument";
 import { RedlineEditor } from "@/components/RedlineEditor";
 import { DiffView } from "@/components/DiffView";
 import {
+  createAmendmentAction,
   decideAction,
   startWorkflowAction,
   addObligationAction,
@@ -60,6 +61,8 @@ export default async function ContractDetailPage({
       template: true,
       counterpartyRef: true,
       currentVersion: true,
+      amendsContract: true,
+      amendments: { orderBy: { createdAt: "asc" } },
       signatures: { orderBy: { order: "asc" } },
       obligations: { orderBy: { dueDate: "asc" }, include: { owner: true } },
       comments: { orderBy: { createdAt: "asc" }, include: { author: true } },
@@ -128,6 +131,7 @@ export default async function ContractDetailPage({
     redlineResolve: can(meActor, "redline:resolve", contract),
     obligation: can(meActor, "obligation:manage", contract),
     comment: can(meActor, "comment:create"),
+    amend: contract.status === "EXECUTED" && can(meActor, "contract:create"),
   };
 
   const currentBody = contract.currentVersion?.body ?? "";
@@ -158,8 +162,30 @@ export default async function ContractDetailPage({
             {contract.description && (
               <p className="mt-1 text-sm text-gray-500">{contract.description}</p>
             )}
+            {contract.amendsContract && (
+              <p className="mt-1 text-sm text-amber-700">
+                Amends{" "}
+                <Link
+                  href={`/contracts/${contract.amendsContract.id}`}
+                  className="font-medium underline hover:text-amber-900"
+                >
+                  {contract.amendsContract.reference} — {contract.amendsContract.title}
+                </Link>
+              </p>
+            )}
           </div>
           <div className="flex items-center gap-2">
+            {perm.amend && (
+              <form action={createAmendmentAction}>
+                <input type="hidden" name="contractId" value={contract.id} />
+                <ConfirmSubmit
+                  message={`Create an amendment to ${contract.reference}? A linked draft seeded from the executed text will open.`}
+                  className="btn-secondary"
+                >
+                  Amend
+                </ConfirmSubmit>
+              </form>
+            )}
             {contract.currentVersion && (
               <a
                 href={`/contracts/${contract.id}/pdf`}
@@ -598,6 +624,27 @@ export default async function ContractDetailPage({
               {contract.template && <Detail label="Template" value={contract.template.name} />}
             </dl>
           </section>
+
+          {contract.amendments.length > 0 && (
+            <section className="card p-5">
+              <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500">
+                Amendments
+              </h2>
+              <ul className="space-y-2">
+                {contract.amendments.map((a) => (
+                  <li key={a.id} className="flex items-center justify-between gap-2 text-sm">
+                    <Link
+                      href={`/contracts/${a.id}`}
+                      className="text-brand-600 hover:underline"
+                    >
+                      {a.reference} — {a.title}
+                    </Link>
+                    <StatusBadge status={a.status} />
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
 
           <section className="card p-5">
             <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500">Audit trail</h2>

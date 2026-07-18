@@ -86,6 +86,82 @@ export async function makeVersion(
 }
 
 /**
+ * Amend an executed contract: create a linked DRAFT contract ("Amendment
+ * No. N to …") seeded from the executed text, inheriting the counterparty and
+ * deal fields. The amendment travels the normal review → approval → signature
+ * path; the parent stays executed and both link to each other.
+ */
+export async function createAmendment(
+  parentId: string,
+  actor: { id: string; name: string }
+) {
+  return prisma.$transaction(async (tx) => {
+    const parent = await tx.contract.findUniqueOrThrow({
+      where: { id: parentId },
+      include: { currentVersion: true, amendments: true },
+    });
+    if (parent.status !== "EXECUTED") {
+      throw new Error("Only executed contracts can be amended.");
+    }
+    const n = parent.amendments.length + 1;
+    const reference = await nextReference(tx);
+    const amendment = await tx.contract.create({
+      data: {
+        reference,
+        title: `Amendment No. ${n} to ${parent.title}`,
+        description: `Amends ${parent.reference} — ${parent.title}.`,
+        counterparty: parent.counterparty,
+        counterpartyId: parent.counterpartyId,
+        category: parent.category,
+        value: parent.value,
+        currency: parent.currency,
+        effectiveDate: null,
+        expirationDate: parent.expirationDate,
+        createdById: actor.id,
+        ownerId: actor.id,
+        templateId: parent.templateId,
+        dataJson: parent.dataJson,
+        amendsContractId: parent.id,
+        status: "DRAFT",
+      },
+    });
+
+    const seedBody = parent.currentVersion
+      ? parent.currentVersion.body
+      : `AMENDMENT No. ${n} TO ${parent.title.toUpperCase()}\n\n(Describe the amended terms here.)`;
+    await makeVersion(tx, {
+      contractId: amendment.id,
+      body: seedBody,
+      note: `Seeded from the executed text of ${parent.reference} (v${parent.currentVersion?.versionNumber ?? "—"}). Edit to reflect the amended terms.`,
+      createdById: actor.id,
+      origin: "MANUAL",
+      makeCurrent: true,
+    });
+
+    await recordAudit(tx, {
+      contractId: amendment.id,
+      entityType: "CONTRACT",
+      entityId: amendment.id,
+      action: "AMENDMENT_CREATED",
+      summary: `Created ${reference} as Amendment No. ${n} to ${parent.reference}`,
+      actorId: actor.id,
+      actorLabel: actor.name,
+    });
+    await recordAudit(tx, {
+      contractId: parent.id,
+      entityType: "CONTRACT",
+      entityId: parent.id,
+      action: "AMENDMENT_CREATED",
+      summary: `Amendment No. ${n} (${reference}) opened against this contract`,
+      actorId: actor.id,
+      actorLabel: actor.name,
+    });
+
+    return tx.contract.findUniqueOrThrow({ where: { id: amendment.id } });
+  });
+}
+
+/**
  * Create a contract in DRAFT with an initial version (v1). The version body is
  * content-hashed so signatures and the audit trail can anchor to exact text.
  */
@@ -233,7 +309,13 @@ export async function deleteContract(contractId: string) {
     await tx.workflowInstance.deleteMany({ where: { contractId } });
     await tx.obligation.deleteMany({ where: { contractId } });
     await tx.comment.deleteMany({ where: { contractId } });
-    // Break the contract↔current-version and version↔basedOn references first.
+    // Break the contract↔current-version and version↔basedOn references first,
+    // and detach any amendments pointing at this contract (they survive as
+    // standalone contracts).
+    await tx.contract.updateMany({
+      where: { amendsContractId: contractId },
+      data: { amendsContractId: null },
+    });
     await tx.contract.update({
       where: { id: contractId },
       data: { currentVersionId: null },

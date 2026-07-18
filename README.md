@@ -151,6 +151,15 @@ own fields, and any custom values, then renders the document as a new version.
 The same pure engine renders the **live preview** in the browser, so what you
 see is what gets written.
 
+### Amendments
+
+An executed contract is immutable — but deals change. **Amend** (on any
+executed contract) creates a linked draft, *Amendment No. N*, seeded from the
+executed text with the counterparty and deal fields inherited. The amendment
+travels the normal review → approval → signature path like any contract;
+parent and amendment link to each other (banner on the amendment, list on the
+parent), and both sides' audit trails record the event.
+
 ### Clause library
 
 **Clauses** (nav → *Clauses*) are pre-approved blocks of contract language —

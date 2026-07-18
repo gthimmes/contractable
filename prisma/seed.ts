@@ -12,6 +12,8 @@ const days = (n: number) => new Date(Date.now() + n * 24 * 60 * 60 * 1000);
 async function reset() {
   await prisma.session.deleteMany();
   await prisma.passwordResetToken.deleteMany();
+  await prisma.reminderLog.deleteMany();
+  await prisma.systemState.deleteMany();
   await prisma.emailMessage.deleteMany();
   await prisma.auditEvent.deleteMany();
   await prisma.signature.deleteMany();
@@ -23,6 +25,7 @@ async function reset() {
   await prisma.contract.updateMany({ data: { currentVersionId: null } });
   await prisma.contractVersion.updateMany({ data: { basedOnVersionId: null } });
   await prisma.contractVersion.deleteMany();
+  await prisma.contract.updateMany({ data: { amendsContractId: null } });
   await prisma.contract.deleteMany();
   await prisma.contractTemplate.deleteMany();
   await prisma.clause.deleteMany();

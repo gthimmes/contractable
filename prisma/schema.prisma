@@ -155,6 +155,12 @@ model Contract {
   currentVersionId String?           @unique
   currentVersion   ContractVersion?  @relation("CurrentVersion", fields: [currentVersionId], references: [id])
 
+  // Amendments: an executed contract can be amended by a linked child contract
+  // that travels the normal review/approval/signature path.
+  amendsContractId String?
+  amendsContract   Contract?  @relation("Amendments", fields: [amendsContractId], references: [id])
+  amendments       Contract[] @relation("Amendments")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

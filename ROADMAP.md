@@ -17,7 +17,7 @@ de-duplication log so nobody is spammed. Runs lazily on app traffic (no cron
 infra needed) plus a `/api/cron/reminders` endpoint for real schedulers.
 *Why first: enforcement is the promise of a CLM — this makes it real.*
 
-## 2. Contract amendments — ⬜ planned
+## 2. Contract amendments — ✅ shipped
 
 An executed contract is immutable, but deals change. "Amend" on an executed
 contract creates a linked draft (amendment №N) seeded from the executed text,
