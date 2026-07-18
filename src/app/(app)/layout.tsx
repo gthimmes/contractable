@@ -1,19 +1,27 @@
 import Link from "next/link";
+import { prisma } from "@/lib/db";
 import { getCurrentUser, getAllUsers } from "@/lib/session";
 import { getImpersonatorId } from "@/lib/auth";
 import { maybeRunSweep } from "@/lib/reminders";
 import { UserMenu } from "@/components/UserMenu";
+import { NavMore } from "@/components/NavMore";
+import { NotificationBell } from "@/components/NotificationBell";
 import { ROLE_LABELS, type Role } from "@/lib/constants";
 
+// Primary destinations stay top-level; the library/ops pages fold into a
+// "More" dropdown so the header fits at any admin viewport width.
 const NAV: { href: string; label: string; roles?: string[] }[] = [
   { href: "/", label: "Dashboard" },
   { href: "/contracts", label: "Contracts" },
+  { href: "/obligations", label: "Obligations" },
+  { href: "/insights", label: "Insights", roles: ["ADMIN", "LEGAL", "MANAGER"] },
+];
+
+const NAV_MORE: { href: string; label: string; roles?: string[] }[] = [
   { href: "/counterparties", label: "Counterparties" },
   { href: "/templates", label: "Templates" },
   { href: "/clauses", label: "Clauses" },
   { href: "/workflows", label: "Workflows" },
-  { href: "/obligations", label: "Obligations" },
-  { href: "/insights", label: "Insights", roles: ["ADMIN", "LEGAL", "MANAGER"] },
   { href: "/outbox", label: "Outbox", roles: ["ADMIN", "LEGAL", "MANAGER"] },
   { href: "/audit", label: "Audit" },
   { href: "/settings", label: "Settings", roles: ["ADMIN"] },
@@ -35,6 +43,15 @@ export default async function AppLayout({
   // (detached — never blocks a page load). Real deployments can also hit
   // /api/cron/reminders from a scheduler.
   void maybeRunSweep().catch(() => {});
+
+  const [notifications, unreadCount] = await Promise.all([
+    prisma.notification.findMany({
+      where: { userId: me.id },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+    }),
+    prisma.notification.count({ where: { userId: me.id, readAt: null } }),
+  ]);
   const impersonating = !!impersonatorId;
   const canImpersonate = me.role === "ADMIN" || impersonating;
 
@@ -47,26 +64,29 @@ export default async function AppLayout({
         </div>
       )}
       <header className="sticky top-0 z-10 border-b border-gray-200 bg-white/90 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
-          <div className="flex items-center gap-8">
-            <Link href="/" className="flex items-center gap-2">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3">
+          <div className="flex min-w-0 items-center gap-4">
+            <Link href="/" className="flex shrink-0 items-center gap-2">
               <span className="grid h-8 w-8 place-items-center rounded-lg bg-brand-600 text-sm font-bold text-white">
                 C
               </span>
-              <span className="text-lg font-semibold tracking-tight">
+              <span className="hidden text-lg font-semibold tracking-tight sm:inline">
                 Contractable
               </span>
             </Link>
-            <nav className="hidden items-center gap-1 md:flex">
+            <nav className="hidden items-center gap-0.5 md:flex">
               {NAV.filter((n) => !n.roles || n.roles.includes(me.role)).map((n) => (
                 <Link
                   key={n.href}
                   href={n.href}
-                  className="rounded-lg px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                  className="rounded-lg px-2.5 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900"
                 >
                   {n.label}
                 </Link>
               ))}
+              <NavMore
+                items={NAV_MORE.filter((n) => !n.roles || n.roles.includes(me.role))}
+              />
             </nav>
           </div>
           <div className="flex items-center gap-3">
@@ -74,9 +94,25 @@ export default async function AppLayout({
               <input
                 name="q"
                 placeholder="Search…"
-                className="w-44 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm shadow-sm focus:border-brand-500 focus:outline-none"
+                className="w-36 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm shadow-sm focus:border-brand-500 focus:outline-none"
               />
             </form>
+            <NotificationBell
+              unreadCount={unreadCount}
+              notifications={notifications.map((n) => ({
+                id: n.id,
+                title: n.title,
+                kind: n.kind,
+                contractId: n.contractId,
+                read: n.readAt !== null,
+                createdAt: n.createdAt.toLocaleString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                }),
+              }))}
+            />
             <UserMenu
               me={me}
               users={users}

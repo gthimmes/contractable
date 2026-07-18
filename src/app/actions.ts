@@ -145,8 +145,9 @@ export async function impersonateAction(formData: FormData) {
     await setImpersonator(null); // returning to self
     await createSession(realAdminId);
   } else {
-    await setImpersonator(realAdminId);
+    // createSession clears any impersonation marker, so set ours after it.
     await createSession(targetId);
+    await setImpersonator(realAdminId);
   }
   revalidatePath("/", "layout");
   redirect("/");
@@ -572,6 +573,19 @@ export async function deleteTemplateAction(formData: FormData) {
   });
   await prisma.contractTemplate.delete({ where: { id } });
   revalidatePath("/templates");
+}
+
+// ===========================================================================
+// Notifications
+// ===========================================================================
+
+export async function markNotificationsReadAction() {
+  const me = await actor();
+  await prisma.notification.updateMany({
+    where: { userId: me.id, readAt: null },
+    data: { readAt: new Date() },
+  });
+  revalidatePath("/", "layout");
 }
 
 // ===========================================================================

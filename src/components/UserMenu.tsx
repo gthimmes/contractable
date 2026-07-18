@@ -31,7 +31,7 @@ export function UserMenu({
     <div className="flex items-center gap-3">
       {canImpersonate ? (
         <form ref={formRef} action={impersonateAction} className="flex items-center gap-1.5">
-          <label className="text-xs font-medium text-gray-400">
+          <label className="hidden text-xs font-medium text-gray-400 xl:inline">
             {impersonating ? "Impersonating" : "View as"}
           </label>
           <select

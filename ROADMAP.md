@@ -62,7 +62,7 @@ configuration`): set `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`,
 `OIDC_NAME` and the login page offers the provider alongside Google/password.
 *Why: orgs on Okta/Entra can't use Google-only SSO.*
 
-## 8. In-app notifications — ⬜ planned
+## 8. In-app notifications — ✅ shipped
 
 A bell in the header backed by the same events that send email: approvals
 waiting on you, signatures completed, redlines proposed. Read/unread state.

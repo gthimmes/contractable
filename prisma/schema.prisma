@@ -71,6 +71,7 @@ model User {
   auditEvents      AuditEvent[]
   sessions         Session[]
   resetTokens      PasswordResetToken[]
+  notifications    Notification[]
 }
 
 // Server-side login sessions. A random token is stored in an httpOnly cookie;
@@ -370,6 +371,21 @@ model AuditEvent {
 // (and to the console) so notifications are demoable with zero infrastructure;
 // swap in real SMTP/API delivery for production.
 // ---------------------------------------------------------------------------
+
+// In-app notifications: created alongside outgoing email for users that exist
+// in the system, surfaced by the header bell with read/unread state.
+model Notification {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title      String
+  kind       String // same vocabulary as EmailMessage.kind
+  contractId String?
+  readAt     DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([userId, readAt])
+}
 
 // Outbound webhooks: admin-managed endpoints that receive HMAC-signed JSON
 // POSTs for lifecycle events. `events` is "*" or a comma-separated filter.

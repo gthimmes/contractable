@@ -342,6 +342,16 @@ most every 12 hours (detached — page loads never wait), and
 `CRON_SECRET` to require a Bearer token). Reminder emails appear in the outbox
 like everything else.
 
+### In-app notifications
+
+The header **bell** shows an unread badge and a dropdown of your latest
+notifications — approvals waiting on you, signature requests, executed/rejected
+outcomes, proposed redlines, and reminders. They're created alongside outgoing
+email in the same transaction (`queueEmail` is the single call site) for
+recipients who are users of the system; external signers and password-reset
+links are excluded. Click-through opens the contract; **Mark all read** clears
+the badge.
+
 ### Email notifications
 
 `email.ts` persists every message to an in-app **outbox** (`EmailMessage`) and

@@ -65,6 +65,18 @@ function deliverDetached(messageId: string, input: EmailInput): void {
   })();
 }
 
+// In-app notifications mirror email for recipients who are users of the
+// system. Password-reset links are excluded — the recipient can't be signed
+// in to see a bell, and the link doesn't belong in a second place.
+const IN_APP_KINDS: ReadonlySet<EmailKind> = new Set([
+  "APPROVAL_REQUEST",
+  "SIGNATURE_REQUEST",
+  "CONTRACT_EXECUTED",
+  "CONTRACT_REJECTED",
+  "REDLINE_PROPOSED",
+  "REMINDER",
+]);
+
 /** Queue one notification: persist to the outbox and hand to the transport. */
 export async function queueEmail(db: Db, input: EmailInput) {
   const msg = await db.emailMessage.create({
@@ -77,6 +89,23 @@ export async function queueEmail(db: Db, input: EmailInput) {
       contractId: input.contractId ?? null,
     },
   });
+
+  // Same event, second surface: an in-app notification when the recipient is
+  // a user (external signers aren't). Shares the caller's transaction.
+  if (IN_APP_KINDS.has(input.kind)) {
+    const user = await db.user.findUnique({ where: { email: input.toEmail } });
+    if (user) {
+      await db.notification.create({
+        data: {
+          userId: user.id,
+          title: input.subject,
+          kind: input.kind,
+          contractId: input.contractId ?? null,
+        },
+      });
+    }
+  }
+
   console.log(`[email] → ${input.toEmail} :: ${input.subject}`);
   deliverDetached(msg.id, input);
   return msg;

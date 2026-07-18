@@ -16,12 +16,17 @@ export function sessionCookieName() {
   return SESSION_COOKIE;
 }
 
-/** Create a session for a user and set the httpOnly session cookie. */
+/**
+ * Create a session for a user and set the httpOnly session cookie. Any stale
+ * impersonation marker is cleared — a fresh sign-in must never inherit one
+ * (impersonateAction re-sets it afterwards, deliberately).
+ */
 export async function createSession(userId: string): Promise<void> {
   const token = randomBytes(32).toString("hex");
   const expiresAt = new Date(Date.now() + SESSION_TTL_DAYS * 24 * 60 * 60 * 1000);
   await prisma.session.create({ data: { token, userId, expiresAt } });
   const store = await cookies();
+  store.delete(IMPERSONATOR_COOKIE);
   store.set(SESSION_COOKIE, token, {
     httpOnly: true,
     sameSite: "lax",
