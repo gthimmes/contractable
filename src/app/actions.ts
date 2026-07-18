@@ -15,6 +15,7 @@ import { requestPasswordReset, resetPassword } from "@/lib/reset";
 import { loginLimiter, resetRequestLimiter } from "@/lib/ratelimit";
 import { importCounterparties } from "@/lib/export";
 import { createApiKey } from "@/lib/api";
+import { saveAttachment, deleteAttachment } from "@/lib/attachments";
 import { cookies } from "next/headers";
 import {
   createContract,
@@ -586,6 +587,39 @@ export async function deleteTemplateAction(formData: FormData) {
   });
   await prisma.contractTemplate.delete({ where: { id } });
   revalidatePath("/templates");
+}
+
+// ===========================================================================
+// Attachments
+// ===========================================================================
+
+export async function uploadAttachmentAction(formData: FormData) {
+  const contractId = str(formData.get("contractId"));
+  const me = await guardContract("comment:create", contractId);
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) {
+    throw new Error("Pick a file to upload.");
+  }
+  const bytes = Buffer.from(await file.arrayBuffer());
+  await saveAttachment(
+    contractId,
+    { name: file.name, type: file.type, bytes },
+    { id: me.id, name: me.name }
+  );
+  revalidatePath(`/contracts/${contractId}`);
+}
+
+export async function deleteAttachmentAction(formData: FormData) {
+  const contractId = str(formData.get("contractId"));
+  const attachmentId = str(formData.get("attachmentId"));
+  const me = await actor();
+  const att = await prisma.attachment.findUniqueOrThrow({ where: { id: attachmentId } });
+  // The uploader may remove their own file; otherwise contract:edit applies.
+  if (att.uploadedById !== me.id) {
+    await guardContract("contract:edit", contractId);
+  }
+  await deleteAttachment(attachmentId, { id: me.id, name: me.name });
+  revalidatePath(`/contracts/${contractId}`);
 }
 
 // ===========================================================================

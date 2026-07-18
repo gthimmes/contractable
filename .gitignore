@@ -33,3 +33,6 @@ next-env.d.ts
 
 # dev server log
 .next-dev.log
+
+# Uploaded contract attachments (local-disk store)
+uploads/

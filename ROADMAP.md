@@ -86,7 +86,7 @@ Signing links currently live forever and silent signers stall deals. Signature
 requests gain an expiry; the reminder sweep nudges pending signers (with the
 same cooldown de-duplication), and expired links show a clear re-issue path.
 
-## 11. Attachments — ⬜ planned
+## 11. Attachments — ✅ shipped
 
 Upload supporting files to a contract (local-disk store, size/type-capped),
 listed on the contract page with download links and audit entries.

@@ -290,7 +290,11 @@ export async function deleteContract(
   contractId: string,
   actor?: { id: string; name: string }
 ) {
+  // Remove attachment files from disk first (rows cascade with the contract).
+  const { removeAttachmentFiles } = await import("./attachments");
+  await removeAttachmentFiles(contractId);
   await prisma.$transaction(async (tx) => {
+    await tx.attachment.deleteMany({ where: { contractId } });
     const doomed = await tx.contract.findUniqueOrThrow({ where: { id: contractId } });
     await tx.emailMessage.deleteMany({ where: { contractId } });
     // The audit log is append-only: deleting rows would break the hash chain

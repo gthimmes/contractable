@@ -335,6 +335,17 @@ even if their role alone wouldn't. Try it: as an admin, impersonate **Vic
 Viewer** — every mutation control disappears, admin-only nav (Settings, Outbox)
 is hidden, and direct navigation to a guarded page redirects.
 
+### Attachments
+
+Every contract has an **Attachments** panel for exhibits, correspondence, and
+scans: uploads are size-capped (10 MB) and type-allowlisted, stored on local
+disk under a **random server-generated name** (the original filename lives
+only in the database, so crafted names can't traverse paths), downloaded
+through an authenticated route, and audited on add/remove. Uploaders can
+delete their own files; contract editors can delete any. Deleting a contract
+removes its files from disk. Swap the read/write calls in `attachments.ts`
+for S3 in production — schema and routes don't change.
+
 ### Import & export
 
 Data leaves cleanly: **Export CSV** on the contracts list downloads the full

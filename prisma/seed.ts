@@ -18,6 +18,7 @@ async function reset() {
   await prisma.webhookEndpoint.deleteMany();
   await prisma.notification.deleteMany();
   await prisma.apiKey.deleteMany();
+  await prisma.attachment.deleteMany();
   await prisma.emailMessage.deleteMany();
   await prisma.auditEvent.deleteMany();
   await prisma.signature.deleteMany();

@@ -35,6 +35,8 @@ import {
   rejectRedlineAction,
   removeSignatureAction,
   reissueSignatureAction,
+  uploadAttachmentAction,
+  deleteAttachmentAction,
 } from "@/app/actions";
 import {
   STEP_TYPE_LABELS,
@@ -69,6 +71,7 @@ export default async function ContractDetailPage({
       signatures: { orderBy: { order: "asc" } },
       obligations: { orderBy: { dueDate: "asc" }, include: { owner: true } },
       comments: { orderBy: { createdAt: "asc" }, include: { author: true } },
+      attachments: { orderBy: { createdAt: "asc" }, include: { uploadedBy: true } },
       versions: {
         orderBy: { versionNumber: "desc" },
         include: { basedOn: true, createdBy: true },
@@ -617,6 +620,62 @@ export default async function ContractDetailPage({
             </details>
             )}
           </section>
+
+          {/* Attachments */}
+          {(perm.comment || contract.attachments.length > 0) && (
+            <section className="card p-5">
+              <h2 className="mb-4 text-lg font-semibold">Attachments</h2>
+              {contract.attachments.length === 0 ? (
+                <p className="mb-4 text-sm text-gray-400">
+                  No files attached — exhibits, correspondence, and scans live here.
+                </p>
+              ) : (
+                <ul className="mb-4 divide-y divide-gray-100">
+                  {contract.attachments.map((a) => (
+                    <li key={a.id} className="flex items-center justify-between gap-3 py-2.5">
+                      <div className="min-w-0">
+                        <a
+                          href={`/contracts/${contract.id}/attachments/${a.id}`}
+                          className="truncate text-sm font-medium text-brand-600 hover:underline"
+                          download
+                        >
+                          {a.fileName}
+                        </a>
+                        <div className="text-xs text-gray-400">
+                          {Math.ceil(a.size / 1024)} KB · {a.uploadedBy.name} ·{" "}
+                          {formatDateTime(a.createdAt)}
+                        </div>
+                      </div>
+                      {(a.uploadedById === me.id || perm.edit) && (
+                        <form action={deleteAttachmentAction}>
+                          <input type="hidden" name="contractId" value={contract.id} />
+                          <input type="hidden" name="attachmentId" value={a.id} />
+                          <ConfirmSubmit
+                            message={`Delete "${a.fileName}"?`}
+                            className="text-xs font-medium text-red-600 hover:underline"
+                          >
+                            Delete
+                          </ConfirmSubmit>
+                        </form>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {perm.comment && (
+                <form action={uploadAttachmentAction} className="flex flex-wrap items-center gap-3">
+                  <input type="hidden" name="contractId" value={contract.id} />
+                  <input type="file" name="file" required className="text-sm" />
+                  <button type="submit" className="btn-secondary">
+                    Upload
+                  </button>
+                  <span className="text-xs text-gray-400">
+                    Max 10 MB. Documents, spreadsheets, and images.
+                  </span>
+                </form>
+              )}
+            </section>
+          )}
 
           {/* Comments */}
           <section className="card p-5">

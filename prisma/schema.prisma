@@ -68,6 +68,7 @@ model User {
   stepActions      WorkflowStepAction[]
   obligations      Obligation[]
   comments         Comment[]
+  attachments      Attachment[]
   auditEvents      AuditEvent[]
   sessions         Session[]
   resetTokens      PasswordResetToken[]
@@ -170,6 +171,7 @@ model Contract {
   signatures        Signature[]
   obligations       Obligation[]
   comments          Comment[]
+  attachments       Attachment[]
   auditEvents       AuditEvent[]
 }
 
@@ -327,6 +329,22 @@ model Obligation {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// Supporting files on a contract (exhibits, correspondence, scans). The bytes
+// live on local disk under uploads/ with a random stored name; this row keeps
+// the original filename and metadata.
+model Attachment {
+  id           String   @id @default(cuid())
+  contractId   String
+  contract     Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  fileName     String // original name, used for download
+  storedName   String   @unique // random name on disk (never the original)
+  mimeType     String
+  size         Int
+  uploadedById String
+  uploadedBy   User     @relation(fields: [uploadedById], references: [id])
+  createdAt    DateTime @default(now())
 }
 
 // ---------------------------------------------------------------------------
