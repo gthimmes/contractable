@@ -13,6 +13,7 @@ import { queueEmail, appUrl } from "./email";
 export const UPCOMING_DAYS = 7; // obligations due within a week
 export const EXPIRING_DAYS = 30; // contracts expiring within a month
 export const COOLDOWN_DAYS = 7; // minimum gap between repeat reminders
+export const SIGNER_COOLDOWN_DAYS = 3; // pending signers are nudged more often
 export const SWEEP_INTERVAL_MS = 12 * 60 * 60 * 1000;
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -42,9 +43,13 @@ export function isExpiringContract(
 }
 
 /** Should we send again, given the last time this exact reminder went out? */
-export function needsReminder(lastSentAt: Date | null, now: Date): boolean {
+export function needsReminder(
+  lastSentAt: Date | null,
+  now: Date,
+  cooldownDays = COOLDOWN_DAYS
+): boolean {
   if (!lastSentAt) return true;
-  return now.getTime() - lastSentAt.getTime() >= COOLDOWN_DAYS * DAY;
+  return now.getTime() - lastSentAt.getTime() >= cooldownDays * DAY;
 }
 
 // --- Sweep ------------------------------------------------------------------
@@ -60,12 +65,14 @@ async function lastSend(entityType: string, entityId: string, kind: string) {
 export interface SweepResult {
   obligationReminders: number;
   contractReminders: number;
+  signerReminders: number;
 }
 
 /** Run one reminder sweep. Idempotent within the cooldown window. */
 export async function runReminderSweep(now = new Date()): Promise<SweepResult> {
   let obligationReminders = 0;
   let contractReminders = 0;
+  let signerReminders = 0;
 
   // Obligations due soon or overdue, still open.
   const horizon = new Date(now.getTime() + UPCOMING_DAYS * DAY);
@@ -138,13 +145,47 @@ export async function runReminderSweep(now = new Date()): Promise<SweepResult> {
     contractReminders++;
   }
 
+  // Pending signers whose turn it is (ordered signing: lowest incomplete
+  // order), on contracts still out for signature, with a live link.
+  const pending = await prisma.signature.findMany({
+    where: { status: "PENDING", contract: { status: "OUT_FOR_SIGNATURE" } },
+    include: { contract: true },
+    orderBy: { order: "asc" },
+  });
+  const nudgedContracts = new Set<string>();
+  for (const sig of pending) {
+    if (nudgedContracts.has(sig.contractId)) continue; // only the blocked signer
+    nudgedContracts.add(sig.contractId);
+    if (sig.expiresAt && sig.expiresAt.getTime() < now.getTime()) continue; // expired → re-issue path
+    const last = await lastSend("SIGNATURE", sig.id, "PENDING");
+    if (!needsReminder(last, now, SIGNER_COOLDOWN_DAYS)) continue;
+    // Don't nudge within the first cooldown after the original request either.
+    if (now.getTime() - sig.createdAt.getTime() < SIGNER_COOLDOWN_DAYS * DAY) continue;
+
+    await queueEmail(prisma, {
+      toEmail: sig.signerEmail,
+      toName: sig.signerName,
+      subject: `Reminder to sign: ${sig.contract.reference} — ${sig.contract.title}`,
+      body:
+        `Hi ${sig.signerName},\n\n` +
+        `"${sig.contract.title}" (${sig.contract.reference}) is still waiting on your signature.\n\n` +
+        `Review & sign here: ${appUrl()}/sign/${sig.token}\n\n— Contractable`,
+      kind: "REMINDER",
+      contractId: sig.contractId,
+    });
+    await prisma.reminderLog.create({
+      data: { entityType: "SIGNATURE", entityId: sig.id, kind: "PENDING" },
+    });
+    signerReminders++;
+  }
+
   await prisma.systemState.upsert({
     where: { key: "reminders:lastRun" },
     update: { value: now.toISOString() },
     create: { key: "reminders:lastRun", value: now.toISOString() },
   });
 
-  return { obligationReminders, contractReminders };
+  return { obligationReminders, contractReminders, signerReminders };
 }
 
 /**
@@ -163,9 +204,9 @@ export async function maybeRunSweep(): Promise<void> {
   });
   void runReminderSweep().then(
     (r) =>
-      (r.obligationReminders || r.contractReminders) &&
+      (r.obligationReminders || r.contractReminders || r.signerReminders) &&
       console.log(
-        `[reminders] sweep: ${r.obligationReminders} obligation, ${r.contractReminders} contract reminder(s) sent`
+        `[reminders] sweep: ${r.obligationReminders} obligation, ${r.contractReminders} contract, ${r.signerReminders} signer reminder(s) sent`
       ),
     (err) => console.error("[reminders] sweep failed:", err)
   );

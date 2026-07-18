@@ -8,6 +8,16 @@ function newToken(): string {
   return randomBytes(24).toString("hex");
 }
 
+/** Signing links are valid this long; expired links can be re-issued. */
+export const SIGNING_LINK_TTL_DAYS = 14;
+
+export function isSignatureExpired(
+  sig: { status: string; expiresAt: Date | null },
+  now = new Date()
+): boolean {
+  return sig.status === "PENDING" && !!sig.expiresAt && sig.expiresAt.getTime() < now.getTime();
+}
+
 export interface SignerInput {
   signerName: string;
   signerEmail: string;
@@ -49,6 +59,7 @@ export async function createSignatureRequests(
           order: i,
           token: newToken(),
           status: "PENDING",
+          expiresAt: new Date(Date.now() + SIGNING_LINK_TTL_DAYS * 24 * 60 * 60 * 1000),
         },
       });
       created.push(sig);
@@ -121,6 +132,9 @@ export async function signDocument(params: {
     if (sig.status !== "PENDING") {
       throw new Error(`This document was already ${sig.status.toLowerCase()}.`);
     }
+    if (isSignatureExpired(sig)) {
+      throw new Error("This signing link has expired. Ask the sender to re-issue it.");
+    }
 
     // Enforce signing order: all earlier-ordered signers must be done.
     const blocking = await tx.signature.findFirst({
@@ -173,6 +187,53 @@ export async function signDocument(params: {
     }
 
     return { done: remaining === 0 };
+  });
+}
+
+/**
+ * Re-issue an expired (or soon-to-expire) pending signing link: new token,
+ * fresh expiry, and a fresh email to the signer. The old link stops working
+ * immediately because the token changes.
+ */
+export async function reissueSignature(
+  signatureId: string,
+  actor: { id: string; name: string }
+) {
+  return prisma.$transaction(async (tx) => {
+    const sig = await tx.signature.findUniqueOrThrow({
+      where: { id: signatureId },
+      include: { contract: true },
+    });
+    if (sig.status !== "PENDING") {
+      throw new Error("Only pending signature requests can be re-issued.");
+    }
+    const updated = await tx.signature.update({
+      where: { id: sig.id },
+      data: {
+        token: newToken(),
+        expiresAt: new Date(Date.now() + SIGNING_LINK_TTL_DAYS * 24 * 60 * 60 * 1000),
+      },
+    });
+    await recordAudit(tx, {
+      contractId: sig.contractId,
+      entityType: "SIGNATURE",
+      entityId: sig.id,
+      action: "SIGNATURE_REISSUED",
+      summary: `Signing link re-issued for ${sig.signerName}`,
+      actorId: actor.id,
+      actorLabel: actor.name,
+    });
+    await queueEmails(tx, [
+      {
+        toEmail: sig.signerEmail,
+        toName: sig.signerName,
+        subject: `New signing link: ${sig.contract.reference} — ${sig.contract.title}`,
+        body: `Hi ${sig.signerName},\n\nHere is a fresh link to sign "${sig.contract.title}" (${sig.contract.reference}). Any previous link no longer works.\n\nReview & sign here: ${appUrl()}/sign/${updated.token}\n\n— Contractable`,
+        kind: "SIGNATURE_REQUEST" as const,
+        contractId: sig.contractId,
+      },
+    ]);
+    return updated;
   });
 }
 

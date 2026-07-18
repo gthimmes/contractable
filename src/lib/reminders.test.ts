@@ -55,4 +55,19 @@ describe("needsReminder", () => {
     expect(needsReminder(days(-(COOLDOWN_DAYS - 1)), NOW)).toBe(false);
     expect(needsReminder(days(-COOLDOWN_DAYS), NOW)).toBe(true);
   });
+
+  it("honors a custom cooldown (signer nudges)", () => {
+    expect(needsReminder(days(-2), NOW, 3)).toBe(false);
+    expect(needsReminder(days(-3), NOW, 3)).toBe(true);
+  });
+});
+
+describe("isSignatureExpired", () => {
+  it("expires only pending signatures past their expiry", async () => {
+    const { isSignatureExpired } = await import("./signing");
+    expect(isSignatureExpired({ status: "PENDING", expiresAt: days(-1) }, NOW)).toBe(true);
+    expect(isSignatureExpired({ status: "PENDING", expiresAt: days(1) }, NOW)).toBe(false);
+    expect(isSignatureExpired({ status: "PENDING", expiresAt: null }, NOW)).toBe(false);
+    expect(isSignatureExpired({ status: "SIGNED", expiresAt: days(-1) }, NOW)).toBe(false);
+  });
 });

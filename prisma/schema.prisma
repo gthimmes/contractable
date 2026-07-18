@@ -297,6 +297,7 @@ model Signature {
   token       String @unique // signing-link token
 
   status       String    @default("PENDING") // PENDING | SIGNED | DECLINED
+  expiresAt    DateTime? // signing-link expiry; null = never (legacy rows)
   signatureData String?  // typed name or drawn-signature payload
   signatureType String?  // TYPED | DRAWN
   documentHash String?   // contentHash of the version at signing time

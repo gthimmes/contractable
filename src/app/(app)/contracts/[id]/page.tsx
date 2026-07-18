@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { getCurrentUser, getAllUsers } from "@/lib/session";
 import { effectiveStatus } from "@/lib/obligations";
+import { isSignatureExpired } from "@/lib/signing";
 import { buildContext } from "@/lib/generation";
 import { can } from "@/lib/permissions";
 import {
@@ -33,6 +34,7 @@ import {
   acceptRedlineAction,
   rejectRedlineAction,
   removeSignatureAction,
+  reissueSignatureAction,
 } from "@/app/actions";
 import {
   STEP_TYPE_LABELS,
@@ -443,22 +445,38 @@ export default async function ContractDetailPage({
                       <div className="flex items-center gap-3">
                         {sig.status === "PENDING" && (
                           <>
-                            <CopyLink path={`/sign/${sig.token}`} />
-                            <Link href={`/sign/${sig.token}`} className="text-xs font-medium text-brand-600 hover:underline">
-                              Open →
-                            </Link>
+                            {!isSignatureExpired(sig) && (
+                              <>
+                                <CopyLink path={`/sign/${sig.token}`} />
+                                <Link href={`/sign/${sig.token}`} className="text-xs font-medium text-brand-600 hover:underline">
+                                  Open →
+                                </Link>
+                              </>
+                            )}
                             {perm.signatureManage && (
-                              <form action={removeSignatureAction}>
-                                <input type="hidden" name="contractId" value={contract.id} />
-                                <input type="hidden" name="signatureId" value={sig.id} />
-                                <ConfirmSubmit message="Remove this pending signer?" className="text-xs font-medium text-red-600 hover:underline">
-                                  Remove
-                                </ConfirmSubmit>
-                              </form>
+                              <>
+                                <form action={reissueSignatureAction}>
+                                  <input type="hidden" name="contractId" value={contract.id} />
+                                  <input type="hidden" name="signatureId" value={sig.id} />
+                                  <button
+                                    className="text-xs font-medium text-brand-600 hover:underline"
+                                    title="New link + fresh expiry, emailed to the signer. The old link stops working."
+                                  >
+                                    Re-issue link
+                                  </button>
+                                </form>
+                                <form action={removeSignatureAction}>
+                                  <input type="hidden" name="contractId" value={contract.id} />
+                                  <input type="hidden" name="signatureId" value={sig.id} />
+                                  <ConfirmSubmit message="Remove this pending signer?" className="text-xs font-medium text-red-600 hover:underline">
+                                    Remove
+                                  </ConfirmSubmit>
+                                </form>
+                              </>
                             )}
                           </>
                         )}
-                        <Pill value={sig.status} />
+                        <Pill value={isSignatureExpired(sig) ? "EXPIRED" : sig.status} />
                       </div>
                     </li>
                   ))}

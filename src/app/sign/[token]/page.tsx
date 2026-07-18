@@ -1,4 +1,4 @@
-import { getSignatureByToken } from "@/lib/signing";
+import { getSignatureByToken, isSignatureExpired } from "@/lib/signing";
 import { SignatureCapture } from "@/components/SignatureCapture";
 import { declineAction } from "@/app/actions";
 import { formatDateTime } from "@/components/ui";
@@ -17,6 +17,19 @@ export default async function SignPage({
         <h1 className="text-xl font-semibold">Invalid signing link</h1>
         <p className="mt-2 text-sm text-gray-500">
           This link is not valid. Please request a new one.
+        </p>
+      </Centered>
+    );
+  }
+
+  if (isSignatureExpired(sig)) {
+    return (
+      <Centered>
+        <h1 className="text-xl font-semibold">This signing link has expired</h1>
+        <p className="mt-2 text-sm text-gray-500">
+          For security, signing links for “{sig.contract.title}” are valid for a
+          limited time. Ask the sender to re-issue your link — you&apos;ll get a
+          fresh one by email.
         </p>
       </Centered>
     );

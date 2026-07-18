@@ -80,7 +80,7 @@ versioned `/api/v1` surface: list/get contracts (with versions and status),
 counterparties, and obligations; create contracts and counterparties.
 Webhooks cover outbound; this is the inbound half of the integration story.
 
-## 10. Signature reminders & signing-link expiry — ⬜ planned
+## 10. Signature reminders & signing-link expiry — ✅ shipped
 
 Signing links currently live forever and silent signers stall deals. Signature
 requests gain an expiry; the reminder sweep nudges pending signers (with the

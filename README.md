@@ -216,6 +216,12 @@ time, the signer, timestamp, and IP. Signing is **ordered** — a signer is
 blocked until everyone ahead of them has signed. The final signature completes
 the workflow's signature step and executes the contract.
 
+Links **expire after 14 days**: an expired link refuses signing with a clear
+message, and the contract page shows an `EXPIRED` pill with a **Re-issue
+link** action (new token + fresh expiry, emailed to the signer; the old link
+stops working immediately). The reminder sweep also **nudges the signer whose
+turn it is** every 3 days while a contract sits out for signature.
+
 ### Search
 
 The header search box (or **/search**) queries everything at once: contract

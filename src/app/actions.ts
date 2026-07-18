@@ -28,6 +28,7 @@ import {
   createSignatureRequests,
   signDocument,
   declineSignature,
+  reissueSignature,
 } from "@/lib/signing";
 import { addObligation, setObligationStatus } from "@/lib/obligations";
 import { proposeRedline, acceptRedline, rejectRedline } from "@/lib/redline";
@@ -431,6 +432,16 @@ export async function removeSignatureAction(formData: FormData) {
   await guardContract("signature:manage", contractId);
   await prisma.signature.delete({
     where: { id: str(formData.get("signatureId")) },
+  });
+  revalidatePath(`/contracts/${contractId}`);
+}
+
+export async function reissueSignatureAction(formData: FormData) {
+  const contractId = str(formData.get("contractId"));
+  const me = await guardContract("signature:manage", contractId);
+  await reissueSignature(str(formData.get("signatureId")), {
+    id: me.id,
+    name: me.name,
   });
   revalidatePath(`/contracts/${contractId}`);
 }
