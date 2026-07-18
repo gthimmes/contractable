@@ -124,6 +124,7 @@ src/
     contracts/         List, new, detail, and edit pages
     counterparties/    Counterparty CRUD
     templates/         Contract-template CRUD (merge fields auto-detected)
+    clauses/           Clause-library CRUD (insertable in the template editor)
     workflows/         Workflow list + visual builder (new/edit)
     sign/[token]/      Public tokenized signing page
     obligations/       Global enforcement view
@@ -149,6 +150,16 @@ loops (`{{#each items}}…{{/each}}`). Generation builds a data context from the
 own fields, and any custom values, then renders the document as a new version.
 The same pure engine renders the **live preview** in the browser, so what you
 see is what gets written.
+
+### Clause library
+
+**Clauses** (nav → *Clauses*) are pre-approved blocks of contract language —
+liability caps, governing law, termination, force majeure ship seeded — managed
+by Legal/admins with the same permissions as templates. In the template editor,
+**"Insert clause from library…"** drops a clause at the cursor, so templates
+are composed from vetted language instead of retyped. Clauses carry merge
+fields just like templates ({{ org.jurisdiction }} etc.), resolve at
+generation time, and are covered by search.
 
 ### Redlining
 
@@ -321,5 +332,5 @@ insert/edit/delete across contracts, templates, workflows, counterparties,
 obligations, signers, comments, and users.
 
 **Natural next steps:** additional identity providers (Okta/SAML — mirror the
-Google flow), clause libraries and conditional template sections, and richer
-search ranking (FTS5/tsvector).
+Google flow), richer search ranking (FTS5/tsvector), contract renewal
+reminders, and bulk import/export.

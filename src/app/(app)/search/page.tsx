@@ -28,7 +28,10 @@ export default async function SearchPage({
   const { q = "" } = await searchParams;
   const results = await searchAll(q);
   const total =
-    results.contracts.length + results.counterparties.length + results.templates.length;
+    results.contracts.length +
+    results.counterparties.length +
+    results.templates.length +
+    results.clauses.length;
 
   return (
     <div className="space-y-6">
@@ -122,6 +125,27 @@ export default async function SearchPage({
                       {t.category && <span className="badge bg-gray-100 text-gray-600">{t.category}</span>}
                     </div>
                     {t.snippet && <Snippet parts={t.snippet} />}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
+          {results.clauses.length > 0 && (
+            <section className="card p-5">
+              <h2 className="mb-3 text-lg font-semibold">
+                Clauses <span className="text-sm font-normal text-gray-400">({results.clauses.length})</span>
+              </h2>
+              <ul className="divide-y divide-gray-100">
+                {results.clauses.map((c) => (
+                  <li key={c.id} className="py-2.5">
+                    <div className="flex items-center justify-between">
+                      <Link href="/clauses" className="font-medium text-gray-900 hover:text-brand-600">
+                        {c.name}
+                      </Link>
+                      {c.category && <span className="badge bg-gray-100 text-gray-600">{c.category}</span>}
+                    </div>
+                    {c.snippet && <Snippet parts={c.snippet} />}
                   </li>
                 ))}
               </ul>

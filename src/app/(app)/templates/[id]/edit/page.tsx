@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/lib/session";
 import { can } from "@/lib/permissions";
 import { saveTemplateAction } from "@/app/actions";
 import { CONTRACT_CATEGORIES } from "@/lib/constants";
+import { TemplateBodyEditor } from "@/components/TemplateBodyEditor";
 
 export default async function EditTemplatePage({
   params,
@@ -18,6 +19,10 @@ export default async function EditTemplatePage({
 
   const template = await prisma.contractTemplate.findUnique({ where: { id } });
   if (!template) notFound();
+  const clauses = await prisma.clause.findMany({
+    orderBy: [{ category: "asc" }, { name: "asc" }],
+    select: { id: true, name: true, category: true, body: true },
+  });
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -77,11 +82,9 @@ export default async function EditTemplatePage({
 
         <div>
           <label className="label">Body *</label>
-          <textarea
+          <TemplateBodyEditor
             name="body"
-            rows={16}
-            required
-            className="input font-mono text-xs"
+            clauses={clauses}
             defaultValue={template.body}
             placeholder="This Agreement is made between {{ org.legalName }} and {{ counterparty.legalName }}…"
           />

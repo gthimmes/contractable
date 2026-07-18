@@ -1,14 +1,20 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/session";
 import { can } from "@/lib/permissions";
 import { saveTemplateAction } from "@/app/actions";
 import { CONTRACT_CATEGORIES } from "@/lib/constants";
+import { TemplateBodyEditor } from "@/components/TemplateBodyEditor";
 
 export default async function NewTemplatePage() {
   const me = await getCurrentUser();
   const meActor = { id: me.id, role: me.role };
   if (!can(meActor, "template:manage")) redirect("/templates");
+  const clauses = await prisma.clause.findMany({
+    orderBy: [{ category: "asc" }, { name: "asc" }],
+    select: { id: true, name: true, category: true, body: true },
+  });
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -60,11 +66,9 @@ export default async function NewTemplatePage() {
 
         <div>
           <label className="label">Body *</label>
-          <textarea
+          <TemplateBodyEditor
             name="body"
-            rows={16}
-            required
-            className="input font-mono text-xs"
+            clauses={clauses}
             placeholder="This Agreement is made between {{ org.legalName }} and {{ counterparty.legalName }}…"
           />
           <p className="mt-1 text-xs text-gray-500">

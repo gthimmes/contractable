@@ -9,6 +9,7 @@ const NAV: { href: string; label: string; roles?: string[] }[] = [
   { href: "/contracts", label: "Contracts" },
   { href: "/counterparties", label: "Counterparties" },
   { href: "/templates", label: "Templates" },
+  { href: "/clauses", label: "Clauses" },
   { href: "/workflows", label: "Workflows" },
   { href: "/obligations", label: "Obligations" },
   { href: "/outbox", label: "Outbox", roles: ["ADMIN", "LEGAL", "MANAGER"] },

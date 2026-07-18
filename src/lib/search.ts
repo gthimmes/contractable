@@ -71,15 +71,16 @@ export interface SearchResults {
   }[];
   counterparties: { id: string; name: string; contactName: string | null }[];
   templates: { id: string; name: string; category: string | null; snippet: SnippetPart[] | null }[];
+  clauses: { id: string; name: string; category: string | null; snippet: SnippetPart[] | null }[];
 }
 
 /** Run the search across all entities. Empty query → empty results. */
 export async function searchAll(query: string, limit = 20): Promise<SearchResults> {
   const q = query.trim();
-  if (!q) return { contracts: [], counterparties: [], templates: [] };
+  if (!q) return { contracts: [], counterparties: [], templates: [], clauses: [] };
   const contains = { contains: q };
 
-  const [contracts, counterparties, templates] = await Promise.all([
+  const [contracts, counterparties, templates, clauses] = await Promise.all([
     prisma.contract.findMany({
       where: {
         OR: [
@@ -111,6 +112,18 @@ export async function searchAll(query: string, limit = 20): Promise<SearchResult
     prisma.contractTemplate.findMany({
       where: {
         OR: [{ name: contains }, { description: contains }, { body: contains }],
+      },
+      orderBy: { name: "asc" },
+      take: limit,
+    }),
+    prisma.clause.findMany({
+      where: {
+        OR: [
+          { name: contains },
+          { category: contains },
+          { description: contains },
+          { body: contains },
+        ],
       },
       orderBy: { name: "asc" },
       take: limit,
@@ -149,6 +162,12 @@ export async function searchAll(query: string, limit = 20): Promise<SearchResult
       name: t.name,
       category: t.category,
       snippet: has(t.body) ? makeSnippet(t.body, q) : null,
+    })),
+    clauses: clauses.map((c) => ({
+      id: c.id,
+      name: c.name,
+      category: c.category,
+      snippet: has(c.body) ? makeSnippet(c.body, q) : null,
     })),
   };
 }

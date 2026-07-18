@@ -25,6 +25,7 @@ async function reset() {
   await prisma.contractVersion.deleteMany();
   await prisma.contract.deleteMany();
   await prisma.contractTemplate.deleteMany();
+  await prisma.clause.deleteMany();
   await prisma.workflowTemplate.deleteMany();
   await prisma.counterparty.deleteMany();
   await prisma.organization.deleteMany();
@@ -122,6 +123,36 @@ async function main() {
       { name: "Mutual NDA", category: "NDA", description: "Standard two-way non-disclosure agreement.", body: NDA_TPL },
       { name: "Master Services Agreement", category: "MSA", description: "Framework agreement for ongoing services.", body: MSA_TPL },
       { name: "Statement of Work", category: "SOW", description: "Project-specific scope under an MSA.", body: SOW_TPL },
+    ],
+  });
+
+  console.log("Creating clause library…");
+  await prisma.clause.createMany({
+    data: [
+      {
+        name: "Limitation of Liability (12-month cap)",
+        category: "Liability",
+        description: "Standard cap at fees paid in the trailing twelve months.",
+        body: "LIMITATION OF LIABILITY. Except for breaches of confidentiality or a Party's indemnification obligations, neither Party's aggregate liability arising out of or related to this Agreement shall exceed the fees paid or payable in the twelve (12) months preceding the event giving rise to the claim. In no event shall either Party be liable for indirect, incidental, special, or consequential damages.",
+      },
+      {
+        name: "Governing Law",
+        category: "General",
+        description: "Uses the organization's jurisdiction merge field.",
+        body: "GOVERNING LAW. This Agreement shall be governed by and construed in accordance with the laws of {{ org.jurisdiction | default:\"the State of Delaware\" }}, without regard to its conflict-of-laws principles.",
+      },
+      {
+        name: "Termination for Convenience (30 days)",
+        category: "Termination",
+        description: "Either party may exit with thirty days' written notice.",
+        body: "TERMINATION FOR CONVENIENCE. Either Party may terminate this Agreement for any reason upon thirty (30) days' prior written notice to the other Party. Fees accrued through the effective date of termination remain payable.",
+      },
+      {
+        name: "Force Majeure",
+        category: "General",
+        description: "Standard excuse for events beyond reasonable control.",
+        body: "FORCE MAJEURE. Neither Party shall be liable for any failure or delay in performance (other than payment obligations) caused by events beyond its reasonable control, including acts of God, natural disasters, war, terrorism, labor disputes, or governmental action, provided the affected Party promptly notifies the other and uses reasonable efforts to resume performance.",
+      },
     ],
   });
 

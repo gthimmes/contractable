@@ -100,6 +100,19 @@ model PasswordResetToken {
 // Contract content
 // ---------------------------------------------------------------------------
 
+// Reusable, pre-approved contract language (a "clause library"). Clauses are
+// inserted into template bodies from the template editor; they can carry the
+// same {{merge fields}} as templates.
+model Clause {
+  id          String   @id @default(cuid())
+  name        String
+  category    String? // e.g. Liability, Confidentiality, Termination
+  description String?
+  body        String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
 model ContractTemplate {
   id          String   @id @default(cuid())
   name        String

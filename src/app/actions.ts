@@ -565,6 +565,35 @@ export async function deleteTemplateAction(formData: FormData) {
 }
 
 // ===========================================================================
+// Clause library CRUD — pre-approved language, managed like templates
+// ===========================================================================
+
+export async function saveClauseAction(formData: FormData) {
+  await guard("template:manage");
+  const id = optStr(formData.get("id"));
+  const data = {
+    name: str(formData.get("name")),
+    category: optStr(formData.get("category")),
+    description: optStr(formData.get("description")),
+    body: str(formData.get("body")),
+  };
+  if (id) {
+    await prisma.clause.update({ where: { id }, data });
+  } else {
+    await prisma.clause.create({ data });
+  }
+  revalidatePath("/clauses");
+  redirect("/clauses");
+}
+
+export async function deleteClauseAction(formData: FormData) {
+  await guard("template:manage");
+  const id = str(formData.get("id"));
+  await prisma.clause.delete({ where: { id } });
+  revalidatePath("/clauses");
+}
+
+// ===========================================================================
 // Workflow templates CRUD (the visual builder posts steps as JSON)
 // ===========================================================================
 
