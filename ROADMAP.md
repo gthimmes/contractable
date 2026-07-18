@@ -32,7 +32,7 @@ two versions of a contract and see the tracked-changes diff between them.
 *Why: cheap (diff engine exists) and answers the most common review question —
 "what changed between v2 and v5?"*
 
-## 4. Insights dashboard — ⬜ planned
+## 4. Insights dashboard — ✅ shipped
 
 /insights: pipeline funnel by status, cycle-time metrics (created → executed),
 executed volume and value by month, breakdown by category and counterparty.

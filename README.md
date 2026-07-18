@@ -128,6 +128,7 @@ src/
     workflows/         Workflow list + visual builder (new/edit)
     sign/[token]/      Public tokenized signing page
     obligations/       Global enforcement view
+    insights/          Portfolio analytics (funnel, cycle time, value) — staff only
     outbox/            Sent-notifications viewer (staff only)
     audit/             Audit log + integrity check
     settings/          Organization settings + user admin (admin only)
@@ -286,6 +287,15 @@ the contract's **owner/creator**, so a manager who owns a deal can act on it
 even if their role alone wouldn't. Try it: as an admin, impersonate **Vic
 Viewer** — every mutation control disappears, admin-only nav (Settings, Outbox)
 is hidden, and direct navigation to a guarded page redirects.
+
+### Insights
+
+**/insights** (staff only) computes portfolio analytics from existing data:
+KPI cards (contracts, total/executed value, in-flight count, average & median
+**cycle time** from created → executed), the pipeline funnel by status,
+executed volume for the trailing six months, and value broken down by category
+and top counterparties. All computations are pure functions in `insights.ts`
+with unit tests — the page just loads rows and renders bars.
 
 ### Reminders (renewals & obligations)
 

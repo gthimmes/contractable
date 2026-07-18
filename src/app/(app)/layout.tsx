@@ -13,6 +13,7 @@ const NAV: { href: string; label: string; roles?: string[] }[] = [
   { href: "/clauses", label: "Clauses" },
   { href: "/workflows", label: "Workflows" },
   { href: "/obligations", label: "Obligations" },
+  { href: "/insights", label: "Insights", roles: ["ADMIN", "LEGAL", "MANAGER"] },
   { href: "/outbox", label: "Outbox", roles: ["ADMIN", "LEGAL", "MANAGER"] },
   { href: "/audit", label: "Audit" },
   { href: "/settings", label: "Settings", roles: ["ADMIN"] },
