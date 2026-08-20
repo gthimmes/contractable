@@ -30,6 +30,8 @@ next-env.d.ts
 
 # testing
 /coverage
+/test-results/
+/playwright-report/
 
 # dev server log
 .next-dev.log

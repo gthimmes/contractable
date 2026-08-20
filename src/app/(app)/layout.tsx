@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { getCurrentUser, getAllUsers } from "@/lib/session";
 import { getImpersonatorId } from "@/lib/auth";
 import { maybeRunSweep } from "@/lib/reminders";
+import { HelpWidget } from "@/components/HelpWidget";
 import { UserMenu } from "@/components/UserMenu";
 import { NavMore } from "@/components/NavMore";
 import { NotificationBell } from "@/components/NotificationBell";
@@ -123,6 +124,7 @@ export default async function AppLayout({
         </div>
       </header>
       <main className="mx-auto max-w-6xl px-4 py-8">{children}</main>
+      <HelpWidget />
       <footer className="mx-auto max-w-6xl px-4 pb-10 pt-4 text-xs text-gray-400">
         Contractable · CLM MVP · signed-in as {me.name} (
         {ROLE_LABELS[me.role as Role] ?? me.role})

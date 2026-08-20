@@ -42,7 +42,8 @@ Other commands:
 
 | Command | What it does |
 | --- | --- |
-| `npm test` | Run the workflow-engine unit tests (Vitest) |
+| `npm test` | Run the unit tests (Vitest) |
+| `npm run test:e2e` | Run the Playwright E2E suite (boots the dev server; needs seed data) |
 | `npm run db:seed` | Reload seed data |
 | `npm run db:reset` | Wipe and reseed the database |
 | `npm run build` | Production build (also type-checks every route) |
