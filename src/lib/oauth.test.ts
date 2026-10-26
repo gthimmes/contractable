@@ -36,8 +36,8 @@ const NOW = new Date("2026-07-18T12:00:00Z").getTime();
 
 describe("googleConfigFromEnv", () => {
   it("is null unless both client id and secret are set", () => {
-    expect(googleConfigFromEnv({} as NodeJS.ProcessEnv)).toBeNull();
-    expect(googleConfigFromEnv({ GOOGLE_CLIENT_ID: "x" } as NodeJS.ProcessEnv)).toBeNull();
+    expect(googleConfigFromEnv({} as unknown as NodeJS.ProcessEnv)).toBeNull();
+    expect(googleConfigFromEnv({ GOOGLE_CLIENT_ID: "x" } as unknown as NodeJS.ProcessEnv)).toBeNull();
   });
 
   it("derives the redirect URI and fixed Google endpoints", () => {
@@ -45,7 +45,7 @@ describe("googleConfigFromEnv", () => {
       GOOGLE_CLIENT_ID: "id",
       GOOGLE_CLIENT_SECRET: "s",
       APP_BASE_URL: "https://contracts.example.com/",
-    } as NodeJS.ProcessEnv);
+    } as unknown as NodeJS.ProcessEnv);
     expect(c?.redirectUri).toBe("https://contracts.example.com/auth/google/callback");
     expect(c?.authEndpoint).toContain("accounts.google.com");
   });
@@ -53,9 +53,9 @@ describe("googleConfigFromEnv", () => {
 
 describe("oidcEnvConfigured", () => {
   it("requires issuer, client id, and secret", () => {
-    expect(oidcEnvConfigured({} as NodeJS.ProcessEnv)).toBeNull();
+    expect(oidcEnvConfigured({} as unknown as NodeJS.ProcessEnv)).toBeNull();
     expect(
-      oidcEnvConfigured({ OIDC_ISSUER: "https://x", OIDC_CLIENT_ID: "a" } as NodeJS.ProcessEnv)
+      oidcEnvConfigured({ OIDC_ISSUER: "https://x", OIDC_CLIENT_ID: "a" } as unknown as NodeJS.ProcessEnv)
     ).toBeNull();
   });
 
@@ -65,9 +65,9 @@ describe("oidcEnvConfigured", () => {
       OIDC_CLIENT_ID: "a",
       OIDC_CLIENT_SECRET: "b",
     };
-    expect(oidcEnvConfigured(base as NodeJS.ProcessEnv)?.name).toBe("SSO");
+    expect(oidcEnvConfigured(base as unknown as NodeJS.ProcessEnv)?.name).toBe("SSO");
     expect(
-      oidcEnvConfigured({ ...base, OIDC_NAME: "Okta" } as NodeJS.ProcessEnv)?.name
+      oidcEnvConfigured({ ...base, OIDC_NAME: "Okta" } as unknown as NodeJS.ProcessEnv)?.name
     ).toBe("Okta");
   });
 });

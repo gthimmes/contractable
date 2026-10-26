@@ -155,7 +155,7 @@ describe("buildMime", () => {
 
 describe("smtpConfigFromEnv", () => {
   it("returns null when SMTP_HOST is unset", () => {
-    expect(smtpConfigFromEnv({} as NodeJS.ProcessEnv)).toBeNull();
+    expect(smtpConfigFromEnv({} as unknown as NodeJS.ProcessEnv)).toBeNull();
   });
 
   it("builds a config with sensible defaults", () => {
@@ -163,7 +163,7 @@ describe("smtpConfigFromEnv", () => {
       SMTP_HOST: "smtp.example.com",
       SMTP_USER: "u",
       SMTP_PASS: "p",
-    } as NodeJS.ProcessEnv);
+    } as unknown as NodeJS.ProcessEnv);
     expect(c).toMatchObject({ host: "smtp.example.com", port: 587, secure: false });
   });
 
@@ -171,7 +171,7 @@ describe("smtpConfigFromEnv", () => {
     const c = smtpConfigFromEnv({
       SMTP_HOST: "smtp.example.com",
       SMTP_PORT: "465",
-    } as NodeJS.ProcessEnv);
+    } as unknown as NodeJS.ProcessEnv);
     expect(c?.secure).toBe(true);
   });
 });
