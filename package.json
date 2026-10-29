@@ -23,7 +23,7 @@
   "dependencies": {
     "@prisma/client": "^6.2.1",
     "help-navigator": "github:gthimmes/help-navigator",
-    "next": "15.5.28",
+    "next": "^16.4.3",
     "react": "19.0.0",
     "react-dom": "19.0.0"
   },
