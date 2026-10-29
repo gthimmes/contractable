@@ -1,4 +1,5 @@
 import { PrismaClient } from "@prisma/client";
+import { createSqliteAdapter } from "./sqlite-adapter";
 
 // Reuse a single PrismaClient across hot-reloads in development to avoid
 // exhausting database connections.
@@ -9,6 +10,7 @@ const globalForPrisma = globalThis as unknown as {
 export const prisma =
   globalForPrisma.prisma ??
   new PrismaClient({
+    adapter: createSqliteAdapter(),
     log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
   });
 
